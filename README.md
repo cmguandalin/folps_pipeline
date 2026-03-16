@@ -34,7 +34,7 @@ BACCO emulator downloads additional files on the first run.
 Some HPC systems do not allow for connection during execution time. 
 In that case, you must provide the emulator cache manually.
 
-### Step 1: Locate the BACCO path
+### 3.1. Locate the BACCO path
 
 Run
 ```bash
@@ -43,7 +43,7 @@ pip show baccoemu
 
 This will show the installation location of the package (e.g., `/my/path/to/conda-envs/folps/lib/python3.14/site-packages/baccoemu`).
 
-### Step 2: Add the cache files
+### 3.2. Add the cache files
 
 Unzip the provided cache file (`bacco_cache.zip`) inside the `baccoemu` directory.
 
