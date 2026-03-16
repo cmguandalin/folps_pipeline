@@ -65,6 +65,12 @@ import folps as FOLPS
 ## 5. Update the paths in the configuration files
 Before running the pipeline, make sure all required paths are correctly set in the `.yml` files.
 
+### 5.1. Guidance for the current set up (temporary)
+Choose one of the available files inside `config/` as an `example.yml`
+
+For the AP reparametrization check, for example, `config/p0p2b0_LRG2_nowindow_reparam.yml`
+Notice that, if you don't rename the paramameters `PAR` to be reparametrized by `PAR_tilde` (i.e., adding the `_tilde` after the parameter name), the reparametrization will not be applied to the parameter. You must also set `reparametrize: true` in the `.yml` file.
+
 ## 6. Usage
 ### 6.1. Submit on HPC
 ```bash
