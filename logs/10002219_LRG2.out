@@ -1,0 +1,17 @@
+====
+Starting job 10002219 at Mon 16 Mar 10:57:04 GMT 2026 for user dc-guan2.
+Running on nodes: m8394
+====
+✅ Using NumPy with CPU.
+Using /cosma/home/dp322/dc-guan2/folps/pipeline//config/p0p2_LRG2_window_AP.yml
+Initialising power spectrum data from /cosma/home/dp322/dc-guan2/folps/pipeline/data/mocks/LRG/cutsky/bin2.
+0: pk0_GCcomb_phmean_abacus_altmtl_rotated_corrected
+2: pk2_GCcomb_phmean_abacus_altmtl_rotated_corrected
+Fixing window convolution (hard-coded) limits to: k_min^IN=0.001, k_max^IN=0.35
+Selecting k_obs limits: k_min=0.02, k_max=0.2
+Selecting multipoles for analysis: ['0', '2']
+Convolving with window
+Traceback (most recent call last):
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline//src/inference.py", line 186, in <module>
+    redshift = wmatrix.attrs['zeff']
+NameError: name 'wmatrix' is not defined

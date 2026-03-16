@@ -1,0 +1,52 @@
+====
+Starting job 10003855 at Mon 16 Mar 13:44:33 GMT 2026 for user dc-guan2.
+Running on nodes: m8373
+====
+✅ Using NumPy with CPU.
+Using /cosma/home/dp322/dc-guan2/folps/pipeline//config/p0p2_LRG2_window_AP.yml
+Initialising power spectrum data from /cosma/home/dp322/dc-guan2/folps/pipeline/data/mocks/LRG/cutsky/bin2.
+2: pk2_GCcomb_phmean_abacus_altmtl_rotated_corrected
+0: pk0_GCcomb_phmean_abacus_altmtl_rotated_corrected
+Fixing window convolution (hard-coded) limits to: k_min^IN=0.001, k_max^IN=0.35
+Selecting k_obs limits: k_min=0.02, k_max=0.2
+Selecting multipoles for analysis: ['0', '2']
+Convolving with window
+Updating redshift to the window effective z=0.7057956472488681.
+Initialising baccoemu for the linear power spectrum...
+Total time: 0.007120835781097412
+Loading matrices from matrices_nfftlog128_Afull-True_use_TNS-False.npy
+Starting sampling at 2026-03-16 13:44:47.007308 with 72 CPUs. 
+
+Iter: 0it [00:00, ?it/s]Iter: 0it [00:00, ?it/s, beta=0, calls=0, ESS=4000, logZ=0, logP=0, acc=0, steps=0, eff=0]multiprocess.pool.RemoteTraceback: 
+"""
+Traceback (most recent call last):
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/site-packages/multiprocess/pool.py", line 125, in worker
+    result = (True, func(*args, **kwds))
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/site-packages/multiprocess/pool.py", line 48, in mapstar
+    return list(map(*args))
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/site-packages/pocomc/tools.py", line 260, in __call__
+    return self.f(x, *self.args, **self.kwargs)
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline//src/inference.py", line 38, in likelihood_wrapper
+    return global_likelihood.ln_prob(theta, global_full_data, global_inv_cov)
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline/src/likelihood.py", line 79, in ln_prob
+    m = self.model_function.compute_model_vector(theta)
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline/src/model_APpar.py", line 897, in compute_model_vector
+    theory_vector = self.window_matrix.dot(theory_vector)
+ValueError: shapes (72,6945) and (20835,) not aligned: 6945 (dim 1) != 20835 (dim 0)
+"""
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline//src/inference.py", line 303, in <module>
+    sampler.run(n_total=ntot, progress=True, save_every=25, resume_state_path=resume_file)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/site-packages/pocomc/sampler.py", line 452, in run
+    logl, blobs = self._log_like(x)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/site-packages/pocomc/sampler.py", line 826, in _log_like
+    results = list(self.distribute(self.log_likelihood, x))
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/site-packages/multiprocess/pool.py", line 367, in map
+    return self._map_async(func, iterable, mapstar, chunksize).get()
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/site-packages/multiprocess/pool.py", line 774, in get
+    raise self._value
+ValueError: shapes (72,6945) and (20835,) not aligned: 6945 (dim 1) != 20835 (dim 0)
+Iter: 0it [00:01, ?it/s, beta=0, calls=0, ESS=4000, logZ=0, logP=0, acc=0, steps=0, eff=0]

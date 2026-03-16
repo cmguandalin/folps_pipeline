@@ -1,0 +1,4 @@
+To activate conda's base environment in your current shell session:
+eval "$(/cosma/local/anaconda3/202309/bin/conda shell.YOUR_SHELL_NAME hook)"
+e.g.
+eval "$(/cosma/local/anaconda3/202309/bin/conda shell.bash hook)"

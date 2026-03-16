@@ -1,0 +1,44 @@
+====
+Starting job 9843975 at Wed 11 Mar 17:08:56 GMT 2026 for user dc-guan2.
+Running on nodes: m8180
+====
+✅ Using NumPy with CPU.
+Using /cosma/home/dp322/dc-guan2/folps/pipeline//config/p0p2_LRG2_window_AP.yml
+Initialising power spectrum data from /cosma/home/dp322/dc-guan2/folps/pipeline/data/mocks/LRG/cutsky/bin2.
+0: pk0_GCcomb_phmean_abacus_altmtl_rotated_corrected
+2: pk2_GCcomb_phmean_abacus_altmtl_rotated_corrected
+Traceback (most recent call last):
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline//src/inference.py", line 132, in <module>
+    from pypower import BaseMatrix # I WILL ELIMINATE THIS DEPENDENCE
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/pypower/__init__.py", line 2, in <module>
+    from .mesh import CatalogMesh, ArrayMesh, ParticleMesh
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/pypower/mesh.py", line 6, in <module>
+    from .direct_power import _format_positions, _format_weights
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/pypower/direct_power.py", line 13, in <module>
+    from . import mpi, utils
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/pypower/mpi.py", line 6, in <module>
+    from mpi4py import MPI
+  File "<frozen importlib._bootstrap>", line 1371, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1333, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1267, in _find_spec
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/mpi4py/_mpiabi.py", line 290, in find_spec
+    mpiabi_suffix = _get_mpiabi_suffix(fullname)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/mpi4py/_mpiabi.py", line 276, in _get_mpiabi_suffix
+    mpiabi = _get_mpiabi()
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/mpi4py/_mpiabi.py", line 258, in _get_mpiabi
+    mpiabi = _get_mpiabi_from_libmpi(libmpi)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/mpi4py/_mpiabi.py", line 217, in _get_mpiabi_from_libmpi
+    lib = _dlopen_libmpi(libmpi)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/mpi4py/_mpiabi.py", line 210, in _dlopen_libmpi
+    raise RuntimeError("\n".join(errors))
+RuntimeError: cannot load MPI library
+/cosma/home/dp322/dc-guan2/.local/lib/libmpi.so: cannot open shared object file: No such file or directory
+/cosma/home/dp322/dc-guan2/.local/lib/libmpi.so.12: cannot open shared object file: No such file or directory
+/cosma/home/dp322/dc-guan2/.local/lib/libmpi.so.40: cannot open shared object file: No such file or directory
+/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/libmpi.so: cannot open shared object file: No such file or directory
+/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/libmpi.so.12: cannot open shared object file: No such file or directory
+/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/libmpi.so.40: cannot open shared object file: No such file or directory
+libmpi.so: cannot open shared object file: No such file or directory
+libmpi.so.12: cannot open shared object file: No such file or directory
+libmpi.so.40: cannot open shared object file: No such file or directory

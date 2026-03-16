@@ -1,0 +1,21 @@
+====
+Starting job 9794254 at Thu  5 Mar 11:43:40 GMT 2026 for user dc-guan2.
+Running on nodes: m8178
+====
+✅ Using NumPy with CPU.
+Using /cosma/home/dp322/dc-guan2/folps/pipeline//config/p0p2b0_LRG2_nowindow_reparam.yml
+Initialising power spectrum data from /cosma/home/dp322/dc-guan2/fitting/data/LRG/z0.8.
+0: pk0_box_phmean
+2: pk2_box_phmean
+Initialising bispectrum data from /cosma/home/dp322/dc-guan2/fitting/data/LRG/z0.8.
+000: bk000_box_phmean
+Initialising baccoemu for the linear power spectrum...
+Total time: 0.006774115562438965
+Loading matrices from matrices_nfftlog128_Afull-True_use_TNS-False.npy
+Traceback (most recent call last):
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline//src/inference.py", line 232, in <module>
+    prior = likelihood.initialise_prior()
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline/src/likelihood.py", line 43, in initialise_prior
+    mean, std = prior_info['lim'][0], prior_info['lim'][1]
+                ~~~~~~~~~~~~~~~~~^^^
+TypeError: 'float' object is not subscriptable

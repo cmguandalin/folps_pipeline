@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline//src/inference.py", line 11, in <module>
+    import model_APpar as model
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline/src/model_APpar.py", line 4, in <module>
+    import baccoemu # REMOVE THIS IF NOT USING FOLPS
+ModuleNotFoundError: No module named 'baccoemu'

@@ -1,0 +1,45 @@
+====
+Starting job 9619554 at Tue 24 Feb 13:41:59 GMT 2026 for user dc-guan2.
+Running on nodes: m8156
+====
+⚠️ No GPU found. Using JAX with CPU.
+❌ Error initializing JAX: No module named 'interpax'
+⏳ Falling back to NumPy...
+✅ Using NumPy with CPU.
+Using /cosma/home/dp322/dc-guan2/folps/pipeline//config/p0p2b0_LRG2_nowindow.yml
+Initialising power spectrum data from /cosma/home/dp322/dc-guan2/fitting/data/LRG/z0.8.
+2: pk2_box_phmean
+0: pk0_box_phmean
+Initialising bispectrum data from /cosma/home/dp322/dc-guan2/fitting/data/LRG/z0.8.
+000: bk000_box_phmean
+Initialising baccoemu for the linear power spectrum...
+Total time: 0.002755538622538249
+Loading matrices from matrices_nfftlog128_Afull-True_use_TNS-False.npy
+Starting sampling at 2026-02-24 13:42:03.655119 with 16 CPUs. 
+
+/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/multiprocess/popen_fork.py:70: RuntimeWarning: os.fork() was called. os.fork() is incompatible with multithreaded code, and JAX is multithreaded, so this will likely lead to a deadlock.
+  self.pid = os.fork()
+Iter: 0it [00:00, ?it/s]Iter: 0it [00:00, ?it/s, beta=0, calls=0, ESS=4000, logZ=0, logP=0, acc=0, steps=0, eff=0]Exception in thread Thread-4 (_handle_results):
+Traceback (most recent call last):
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/threading.py", line 1082, in _bootstrap_inner
+    self._context.run(self.run)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/threading.py", line 1024, in run
+    self._target(*self._args, **self._kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/multiprocess/pool.py", line 579, in _handle_results
+    task = get()
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/multiprocess/connection.py", line 260, in recv
+    return _ForkingPickler.loads(buf.getbuffer())
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/dill/_dill.py", line 312, in loads
+    return load(file, ignore, **kwds)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/dill/_dill.py", line 298, in load
+    return Unpickler(file, ignore=ignore, **kwds).load()
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/dill/_dill.py", line 453, in load
+    obj = StockUnpickler.load(self)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/jax/_src/errors.py", line 134, in __init__
+    f"{tracer._error_repr()}\n{context}{tracer._origin_msg()}\n")
+       ^^^^^^^^^^^^^^^^^^
+AttributeError: 'str' object has no attribute '_error_repr'

@@ -1,0 +1,23 @@
+====
+Starting job 9635016 at Thu 26 Feb 12:55:41 GMT 2026 for user dc-guan2.
+Running on nodes: m8398
+====
+✅ Using NumPy with CPU.
+Using /cosma/home/dp322/dc-guan2/folps/pipeline//config/example.yml
+Initialising power spectrum data from /cosma/home/dp322/dc-guan2/fitting/data/LRG/z0.8.
+2: pk2_GCcomb_phmean_abacus_altmtl_rotated_corrected
+0: pk0_GCcomb_phmean_abacus_altmtl_rotated_corrected
+Traceback (most recent call last):
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline//src/inference.py", line 107, in <module>
+    cov_loader.process()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline/src/covariance_loader.py", line 72, in process
+    self.load_covariance()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline/src/covariance_loader.py", line 25, in load_covariance
+    self.covariance = np.load(self.cov_path, allow_pickle=True).item()
+                      ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/numpy/lib/_npyio_impl.py", line 454, in load
+    fid = stack.enter_context(open(os.fspath(file), "rb"))
+                              ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/cosma/home/dp322/dc-guan2/fitting/data/LRG/z0.8/cov_desi_pk02_LRG2'

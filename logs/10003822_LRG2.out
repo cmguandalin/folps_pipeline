@@ -1,0 +1,21 @@
+====
+Starting job 10003822 at Mon 16 Mar 13:37:23 GMT 2026 for user dc-guan2.
+Running on nodes: m8363
+====
+✅ Using NumPy with CPU.
+Using /cosma/home/dp322/dc-guan2/folps/pipeline//config/p0p2_LRG2_window_AP.yml
+Initialising power spectrum data from /cosma/home/dp322/dc-guan2/folps/pipeline/data/mocks/LRG/cutsky/bin2.
+2: pk2_GCcomb_phmean_abacus_altmtl_rotated_corrected
+0: pk0_GCcomb_phmean_abacus_altmtl_rotated_corrected
+Fixing window convolution (hard-coded) limits to: k_min^IN=0.001, k_max^IN=0.35
+Selecting k_obs limits: k_min=0.02, k_max=0.2
+Selecting multipoles for analysis: ['0', '2']
+Convolving with window
+Updating redshift to the window effective z=0.7057956472488681.
+Initialising baccoemu for the linear power spectrum...
+Total time: 0.00627971092859904
+Loading matrices from matrices_nfftlog128_Afull-True_use_TNS-False.npy
+Traceback (most recent call last):
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline//src/inference.py", line 212, in <module>
+    print(k_theory_window.shape)
+AttributeError: 'list' object has no attribute 'shape'

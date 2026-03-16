@@ -1,0 +1,18 @@
+====
+Starting job 9713335 at Mon  2 Mar 13:33:34 GMT 2026 for user dc-guan2.
+Running on nodes: m8068
+====
+✅ Using NumPy with CPU.
+Using /cosma/home/dp322/dc-guan2/folps/pipeline//config/p0p2b0_LRG2_nowindow.yml
+Initialising power spectrum data from /cosma/home/dp322/dc-guan2/fitting/data/LRG/z0.8.
+2: pk2_box_phmean
+0: pk0_box_phmean
+Initialising bispectrum data from /cosma/home/dp322/dc-guan2/fitting/data/LRG/z0.8.
+000: bk000_box_phmean
+Initialising baccoemu for the linear power spectrum...
+Total time: 0.006983069578806559
+Loading matrices from matrices_nfftlog128_Afull-True_use_TNS-False.npy
+Starting sampling at 2026-03-02 13:33:48.435382 with 64 CPUs. 
+
+Resuming from /cosma/home/dp322/dc-guan2/folps/pipeline/results/LRG/z0.8/p0p2b0_noresc_secondtest_200.state
+Iter: 200it [00:00, ?it/s]Iter: 200it [00:00, ?it/s, beta=0.358, calls=556288, ESS=3.99e+3, logZ=-28.3, logP=-46.9, acc=0.488, steps=10, eff=1]Iter: 201it [00:00,  3.77it/s, beta=0.358, calls=556288, ESS=3.99e+3, logZ=-28.3, logP=-46.9, acc=0.488, steps=10, eff=1]Iter: 201it [00:03,  3.77it/s, beta=0.37, calls=556288, ESS=4009, logZ=-28.5, logP=-46.9, acc=0.488, steps=10, eff=1]    Iter: 201it [01:03,  3.77it/s, beta=0.37, calls=556544, ESS=4009, logZ=-28.5, logP=-46.3, acc=0.55, steps=1, eff=1]  Iter: 201it [01:59,  3.77it/s, beta=0.37, calls=556800, ESS=4009, logZ=-28.5, logP=-46.2, acc=0.497, steps=2, eff=1]Iter: 201it [02:56,  3.77it/s, beta=0.37, calls=557056, ESS=4009, logZ=-28.5, logP=-45.8, acc=0.518, steps=3, eff=1]Iter: 201it [03:53,  3.77it/s, beta=0.37, calls=557312, ESS=4009, logZ=-28.5, logP=-45.9, acc=0.501, steps=4, eff=1]Iter: 201it [04:50,  3.77it/s, beta=0.37, calls=557568, ESS=4009, logZ=-28.5, logP=-45.9, acc=0.477, steps=5, eff=1]Iter: 201it [05:46,  3.77it/s, beta=0.37, calls=557824, ESS=4009, logZ=-28.5, logP=-46.3, acc=0.494, steps=6, eff=1]Iter: 201it [06:44,  3.77it/s, beta=0.37, calls=558080, ESS=4009, logZ=-28.5, logP=-46, acc=0.491, steps=7, eff=1]  

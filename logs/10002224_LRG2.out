@@ -1,0 +1,67 @@
+====
+Starting job 10002224 at Mon 16 Mar 11:02:40 GMT 2026 for user dc-guan2.
+Running on nodes: m8410
+====
+✅ Using NumPy with CPU.
+Using /cosma/home/dp322/dc-guan2/folps/pipeline//config/p0p2_LRG2_window_AP.yml
+Initialising power spectrum data from /cosma/home/dp322/dc-guan2/folps/pipeline/data/mocks/LRG/cutsky/bin2.
+2: pk2_GCcomb_phmean_abacus_altmtl_rotated_corrected
+0: pk0_GCcomb_phmean_abacus_altmtl_rotated_corrected
+Fixing window convolution (hard-coded) limits to: k_min^IN=0.001, k_max^IN=0.35
+Selecting k_obs limits: k_min=0.02, k_max=0.2
+Selecting multipoles for analysis: ['0', '2']
+Convolving with window
+Updating redshift to the window effective z=0.7057956472488681.
+Initialising baccoemu for the linear power spectrum...
+Downloading emulator data (141 Kb)...
+Traceback (most recent call last):
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/urllib/request.py", line 1348, in do_open
+    h.request(req.get_method(), req.selector, req.data, headers,
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/http/client.py", line 1303, in request
+    self._send_request(method, url, body, headers, encode_chunked)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/http/client.py", line 1349, in _send_request
+    self.endheaders(body, encode_chunked=encode_chunked)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/http/client.py", line 1298, in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/http/client.py", line 1058, in _send_output
+    self.send(msg)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/http/client.py", line 996, in send
+    self.connect()
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/http/client.py", line 1468, in connect
+    super().connect()
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/http/client.py", line 962, in connect
+    self.sock = self._create_connection(
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/socket.py", line 857, in create_connection
+    raise err
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/socket.py", line 845, in create_connection
+    sock.connect(sa)
+TimeoutError: [Errno 110] Connection timed out
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline//src/inference.py", line 190, in <module>
+    calculator = model.FOLPSCalculator(
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline/src/model_APpar.py", line 51, in __init__
+    self._initialise_linear_pk_baccoemu()
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline/src/model_APpar.py", line 76, in _initialise_linear_pk_baccoemu
+    self.emulator = baccoemu.Matter_powerspectrum(verbose=False)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/site-packages/baccoemu/matter_powerspectrum.py", line 88, in __init__
+    self.emulator['sigma8'] = load_sigma8_emu(verbose=verbose)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/site-packages/baccoemu/matter_powerspectrum.py", line 1535, in load_sigma8_emu
+    urllib.request.urlretrieve(
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/urllib/request.py", line 241, in urlretrieve
+    with contextlib.closing(urlopen(url, data)) as fp:
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/urllib/request.py", line 216, in urlopen
+    return opener.open(url, data, timeout)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/urllib/request.py", line 519, in open
+    response = self._open(req, data)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/urllib/request.py", line 536, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/urllib/request.py", line 496, in _call_chain
+    result = func(*args)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/urllib/request.py", line 1391, in https_open
+    return self.do_open(http.client.HTTPSConnection, req,
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.10/urllib/request.py", line 1351, in do_open
+    raise URLError(err)
+urllib.error.URLError: <urlopen error [Errno 110] Connection timed out>

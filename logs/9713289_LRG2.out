@@ -1,0 +1,23 @@
+====
+Starting job 9713289 at Mon  2 Mar 12:55:45 GMT 2026 for user dc-guan2.
+Running on nodes: m8192
+====
+✅ Using NumPy with CPU.
+Using /cosma/home/dp322/dc-guan2/folps/pipeline//config/p0p2b0_LRG2_nowindow.yml
+Initialising power spectrum data from /cosma/home/dp322/dc-guan2/fitting/data/LRG/z0.8.
+2: pk2_box_phmean
+0: pk0_box_phmean
+Initialising bispectrum data from /cosma/home/dp322/dc-guan2/fitting/data/LRG/z0.8.
+000: bk000_box_phmean
+Initialising baccoemu for the linear power spectrum...
+Total time: 0.00692982276280721
+Loading matrices from matrices_nfftlog128_Afull-True_use_TNS-False.npy
+Starting sampling at 2026-03-02 12:55:59.681838 with 64 CPUs. 
+
+Traceback (most recent call last):
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline//src/inference.py", line 254, in <module>
+    state_files = sorted(state_files, key=extract_iteration)
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline//src/inference.py", line 251, in extract_iteration
+    match = re.search(r'_(\d+)\.state$', filename)
+            ^^
+NameError: name 're' is not defined. Did you forget to import 're'?

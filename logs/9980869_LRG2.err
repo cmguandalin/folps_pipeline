@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline//src/inference.py", line 5, in <module>
+    import yaml
+ModuleNotFoundError: No module named 'yaml'

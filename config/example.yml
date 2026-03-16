@@ -1,0 +1,112 @@
+backend: 'folps'
+
+data_path: '/cosma/home/dp322/dc-guan2/fitting/data/LRG/z0.8/'
+
+data_files:
+    #'0': 'pk0_box_phmean'
+    #'2': 'pk2_box_phmean'
+    '0': 'pk0_GCcomb_phmean_abacus_altmtl_rotated_corrected'
+    '2': 'pk2_GCcomb_phmean_abacus_altmtl_rotated_corrected'
+    #'000': 'bk000_box_phmean'
+    #'202': 'bk202_box_phmean'
+
+cov_file: 'cov_desi_pk02_LRG2.npy' 
+#cov_file: 'cov.npy'
+number_of_mocks: 1000
+rescale: false
+
+window_file: '/cosma/home/dp322/dc-guan2/fitting/data/LRG/z0.8/wmatrix_smooth_rotated_LRG_GCcomb_z0.6-0.8_thetacut0.05.npy'
+
+path_to_save: '/cosma/home/dp322/dc-guan2/folps/pipeline/results/LRG/z0.8'
+file_name: 'p0p2_noresc_reparametrize_window'
+
+k_edges:
+    '0':
+        - 0.02
+        - 0.18
+    '2':
+        - 0.02
+        - 0.18
+    #'000':
+    #    - 0.02
+    #    - 0.08
+    #'202':
+    #    - 0.02
+    #    - 0.08
+
+mean_density: 1.e-3
+redshift: 0.8
+#cache_path: '/Users/austerlitz/tmp/TripoSH-Fitting/example/z0.8/'
+#cache_path: '/Users/austerlitz/TripoSH-Factory/my_project/emulator/debug/LRG/z0.8/cache/'
+
+prior:
+    'omega_cdm':
+        'type': 'Uni'
+        'lim':
+            - 0.05
+            - 0.2
+    'omega_b':
+        'type': 'Gauss'
+        'lim':
+            - 0.02218
+            - 0.00055
+    'h':
+        'type': 'Uni'
+        'lim':
+            - 0.5
+            - 0.9
+    'n_s':
+        'type': 'Gauss'
+        'lim':
+            - 0.9649
+            - 0.042
+    'ln10^{10}A_s':
+        'type': 'Uni'
+        'lim':
+            - 1.61
+            - 3.91
+    'b1_tilde':
+        'type': 'Uni'
+        'lim':
+            - 0.1
+            - 4
+    'b2_tilde':
+        'type': 'Gauss'
+        'lim':
+            - 0
+            - 20
+    'bG2_tilde':
+        'type': 'Gauss'
+        'lim':
+            - -0.314
+            - 20
+    'bGamma3_tilde':
+        'type': 'Gauss'
+        'lim':
+            - 0.602
+            - 80
+    'c0_tilde':
+        'type': 'Gauss'
+        'lim':
+            - 0
+            - 500
+    'c2pp_tilde':
+        'type': 'Gauss'
+        'lim':
+            - 0
+            - 500
+    'ch':
+        'type': 'Uni'
+        'lim':
+            - -100
+            - 100
+    'a0_tilde':
+        'type': 'Gauss'
+        'lim':
+            - 0
+            - 2
+    'a2_tilde':
+        'type': 'Gauss'
+        'lim':
+            - 0
+            - 5

@@ -1,0 +1,11 @@
+====
+Starting job 9843790 at Wed 11 Mar 15:12:15 GMT 2026 for user dc-guan2.
+Running on nodes: m8172
+====
+✅ Using NumPy with CPU.
+Using /cosma/home/dp322/dc-guan2/folps/pipeline//config/p0p2_LRG2_window_AP.yml
+Traceback (most recent call last):
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline//src/inference.py", line 75, in <module>
+    reparametrize = config['reparametrize']
+                    ~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'reparametrize'

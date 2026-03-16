@@ -1,0 +1,14 @@
+====
+Starting job 9843793 at Wed 11 Mar 15:18:21 GMT 2026 for user dc-guan2.
+Running on nodes: m8273
+====
+✅ Using NumPy with CPU.
+Using /cosma/home/dp322/dc-guan2/folps/pipeline//config/p0p2_LRG2_window_AP.yml
+Initialising power spectrum data from /cosma/home/dp322/dc-guan2/folps/pipeline/data/mocks/LRG/cutsky/bin2.
+2: pk2_GCcomb_phmean_abacus_altmtl_rotated_corrected
+0: pk0_GCcomb_phmean_abacus_altmtl_rotated_corrected
+Traceback (most recent call last):
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline//src/inference.py", line 132, in <module>
+    from pypower import BaseMatrix # I WILL ELIMINATE THIS DEPENDENCE
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'pypower'

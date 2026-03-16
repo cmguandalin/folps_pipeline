@@ -1,0 +1,95 @@
+backend: 'folps'
+
+data_path: '/cosma/home/dp322/dc-guan2/folps/pipeline/data/mocks/LRG/boxes/z0.8/'
+
+data_files:
+    '0': 'pk0_box_phmean'
+    '2': 'pk2_box_phmean'
+
+cov_file: 'cov.npy'
+number_of_mocks: 1000
+#rescale: 0.25
+rescale: false
+
+reparametrize: true
+
+path_to_save: '/cosma/home/dp322/dc-guan2/folps/pipeline/results/LRG'
+file_name: 'p0p2_LRG2_nowindow'
+
+k_edges:
+    '0':
+        - 0.02
+        - 0.20
+    '2':
+        - 0.02
+        - 0.20
+
+mean_density: 1.e-3
+redshift: 0.8
+
+prior:
+    'omega_cdm':
+        'type': 'Uni'
+        'lim':
+            - 0.05
+            - 0.20
+    'omega_b':
+        'type': 'Gauss'
+        'lim':
+            - 0.02218
+            - 0.00055
+    'h':
+        'type': 'Uni'
+        'lim':
+            - 0.50
+            - 0.79
+    'n_s':
+        'type': 'Gauss'
+        'lim':
+            - 0.9649
+            - 0.042
+    'ln10^{10}A_s':
+        'type': 'Uni'
+        'lim':
+            - 2
+            - 4
+    'b1_tilde':
+        'type': 'Uni'
+        'lim':
+            - 0.1
+            - 4.0
+    'b2_tilde':
+        'type': 'Gauss'
+        'lim':
+            - 0
+            - 5
+    'bG2_tilde':
+        'type': 'Gauss'
+        'lim':
+            - -0.0920537
+            - 5
+    'bGamma3_tilde':
+        'type': 'Gauss'
+        'lim': 
+            - 0.0950991
+            - 0.156591
+    'c0_tilde':
+        'type': 'Gauss'
+        'lim': 
+            - 0
+            - 12.5
+    'c2pp_tilde':
+        'type': 'Gauss'
+        'lim': 
+            - 0
+            - 12.5
+    'a0_tilde':
+        'type': 'Gauss'
+        'lim':
+             - 0
+             - 2
+    'a2_tilde':
+        'type': 'Gauss'
+        'lim':
+             - 0
+             - 5

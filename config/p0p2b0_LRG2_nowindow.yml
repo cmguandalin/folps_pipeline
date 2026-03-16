@@ -1,0 +1,137 @@
+backend: 'folps'
+
+data_path: '/cosma/home/dp322/dc-guan2/fitting/data/LRG/z0.8/'
+
+data_files:
+    '0': 'pk0_box_phmean'
+    '2': 'pk2_box_phmean'
+    '000': 'bk000_box_phmean'
+    #'202': 'bk202_phmean'
+
+cov_file: 'cov.npy'
+number_of_mocks: 1000
+#rescale: 0.25
+rescale: false
+
+path_to_save: '/cosma/home/dp322/dc-guan2/folps/pipeline/results/LRG/z0.8'
+#file_name: 'p0p2b0_resc_secondtest'
+file_name: 'p0p2b0_noresc_ch=0_APpriors'
+
+k_edges:
+    '0':
+        - 0.02
+        - 0.20
+    '2':
+        - 0.02
+        - 0.20
+    '000':
+        - 0.02
+        - 0.10
+    #'202':
+    #    - 0.02
+    #    - 0.08
+
+mean_density: 1.e-3
+redshift: 0.8
+#cache_path: '/Users/austerlitz/tmp/TripoSH-Fitting/example/z0.8/'
+#cache_path: '/Users/austerlitz/TripoSH-Factory/my_project/emulator/debug/LRG/z0.8/cache/'
+
+prior:
+    'omega_cdm':
+        'type': 'Uni'
+        'lim':
+            - 0.05
+            - 0.20
+    'omega_b':
+        'type': 'Gauss'
+        'lim':
+            - 0.02218
+            - 0.00055
+    'h':
+        'type': 'Uni'
+        'lim':
+            - 0.50
+            - 0.79
+    'n_s':
+        'type': 'Gauss'
+        'lim':
+            - 0.9649
+            - 0.042
+    'ln10^{10}A_s':
+        'type': 'Uni'
+        'lim':
+            - 2
+            - 4
+    'b1':
+        'type': 'Uni'
+        'lim':
+            - 0.1
+            - 4.0
+    'b2':
+        'type': 'Gauss'
+        'lim':
+            - 0
+            - 5
+    'bG2':
+        'type': 'Gauss'
+        'lim':
+            - -0.0920537
+            - 5
+    'bGamma3':
+        'type': 'Gauss'
+        'lim': 
+            - 0.0950991
+            - 0.156591
+    'c0':
+        'type': 'Gauss'
+        'lim': 
+            - 0
+            - 12.5
+    'c2pp':
+        'type': 'Gauss'
+        'lim': 
+            - 0
+            - 12.5
+    'ch':
+        'type': 'Fix'
+        'lim': 0 
+            #- 0
+            #- 10
+    'c1':
+        'type': 'Gauss'
+        'lim':
+            - 0
+            - 5
+    'c2':
+        'type': 'Gauss'
+        'lim': 0.1
+    'a0':
+        'type': 'Gauss'
+        'lim':
+             - 0
+             - 2
+    'a2':
+        'type': 'Gauss'
+        'lim':
+             - 0
+             - 5
+    'Pshot':
+        'type': 'Gauss'
+        'lim':
+            - 0
+            - 1
+    'Bshot':
+        'type': 'Gauss'
+        'lim':
+            - 0
+            - 1
+    #'X_FoG':
+    #    'type': 'Fix'
+    #    'lim':
+    #        - -10
+    #        - 10
+    #'X_FoG_bk':
+    #    'type': 'Uni'
+    #    'lim':
+    #        - -10
+    #        - 10

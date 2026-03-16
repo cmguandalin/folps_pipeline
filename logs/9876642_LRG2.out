@@ -1,0 +1,30 @@
+====
+Starting job 9876642 at Fri 13 Mar 11:51:36 GMT 2026 for user dc-guan2.
+Running on nodes: m8406
+====
+✅ Using NumPy with CPU.
+Using /cosma/home/dp322/dc-guan2/folps/pipeline//config/p0p2_LRG2_window_AP.yml
+Initialising power spectrum data from /cosma/home/dp322/dc-guan2/folps/pipeline/data/mocks/LRG/cutsky/bin2.
+0: pk0_GCcomb_phmean_abacus_altmtl_rotated_corrected
+2: pk2_GCcomb_phmean_abacus_altmtl_rotated_corrected
+Traceback (most recent call last):
+  File "/cosma/home/dp322/dc-guan2/folps/pipeline//src/inference.py", line 136, in <module>
+    wmatrix  = BaseMatrix.load(window_file)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/pypower/utils.py", line 193, in load
+    state = np.load(filename, allow_pickle=True)[()]
+            ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/numpy/lib/_npyio_impl.py", line 483, in load
+    return format.read_array(fid, allow_pickle=allow_pickle,
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                             pickle_kwargs=pickle_kwargs,
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                             max_header_size=max_header_size)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/numpy/lib/_format_impl.py", line 838, in read_array
+    array = pickle.load(fp, **pickle_kwargs)
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/jax/_src/array.py", line 126, in _reconstruct_array
+    jnp_value.aval = jnp_value.aval.update(**aval_state)
+                     ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/cosma/apps/dp322/dc-guan2/conda-envs/folps/lib/python3.14/site-packages/jax/_src/core.py", line 2217, in update
+    return ShapedArray(shape, dtype, weak_type, **kwargs)
+TypeError: ShapedArray.__init__() got an unexpected keyword argument 'named_shape'
