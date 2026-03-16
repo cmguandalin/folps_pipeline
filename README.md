@@ -70,8 +70,11 @@ Before running the pipeline, make sure all required paths are correctly set in t
 ```bash
 sbatch scripts/run_fit-poco.sh config/example.yml
 ```
+Track the process with `tail -f logs/JOB_ID.out`
 
 ### 6.2. Local usage
 ```bash
 nohup python -u src/inference.py -config config/example.yml > nohup.out 2>&1 &
 ```
+
+Track the process with `tail -f nohup.out`
