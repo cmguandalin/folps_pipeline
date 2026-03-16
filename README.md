@@ -6,7 +6,7 @@ This guide explains how to set up the environment and install the dependencies r
 
 ## 1. Create a Conda Environment
 
-(Recommended) Create a dedicated Conda environment:
+(Recommended) Create a new Conda environment:
 
 ```bash
 mkdir -p /path/to/conda-envs
