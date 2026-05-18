@@ -3,7 +3,7 @@ from scipy.interpolate import interp1d
 import baccoemu # REMOVE THIS IF NOT USING FOLPS
 
 import os, sys
-os.environ['FOLPS_BACKEND'] = 'numpy'
+os.environ['FOLPS_BACKEND'] = 'numpy'  #'numpy' or 'jax'
 sys.path.append('/cosma/home/dp322/dc-guan2/folps/folpsD/')
 import folps as FOLPS
 
@@ -92,7 +92,9 @@ class FOLPSCalculator:
         self.kemul_pk = np.logspace(-4, np.log10(3), num=1000)
 
     def _get_linear_pk(self, pars):
-        # bacco calls Omega_x omega_x.
+
+        # bacco calls "O"mega_x "o"mega_x.
+
         bacco_cosmo_pars = {
                     'omega_cold'    : (pars['omega_cdm'] + pars['omega_b']) / pars['h']**2,
                     'omega_baryon'  : pars['omega_b']/pars['h']**2,
@@ -118,7 +120,6 @@ class FOLPSCalculator:
 
         self.kemul_pk, self.pk_lin = self.emulator.get_linear_pk(k=self.kemul_pk, cold=True, **bacco_cosmo_pars)
         self.kemul_pk, self.pk_nw  = self.emulator.get_no_wiggles_pk(k=self.kemul_pk,cold=True,**bacco_cosmo_pars)
-        
         tmpk_  = np.geomspace(1e-4,20,2000)
         tmppk_ = interp1d(np.log(self.kemul_pk),np.log(self.pk_lin),
                           bounds_error=False,fill_value='extrapolate',kind='cubic')(np.log(tmpk_))
@@ -219,25 +220,27 @@ class FOLPSCalculator:
         '''
             This is only being defined because the list is too long
         '''
+        #bias parameters
+        # if bias_scheme='folps'   then b2=b2_mcdonald, bs=bs_mcdonald, b3=b3nl_mcdonald   (DEFAULT)
+        # if bias_scheme='classpt' then b2=b2_assassi,  bs=bG2_assassi, b3=bGamma3_assassi
+
         #bias_scheme='classpt'
         bias_scheme='folps'
-        #bias_scheme = 'DESI'
 
-        # Performing the change of from bK² btd to the folps basis directly
         b1 = pars['b1']
         b2 = pars['b2']
         bs = 2.0*pars.get('bG2', 0.0)
         b3 = 64/105 * (-5/4 * bs - pars.get('bGamma3', 0.0))
 
-        c0 = b1**2 * pars.get('c0', 0.0) #pars.get('c0', 0.0)
-        c2 = b1*f_ * (pars.get('c0', 0.0) + pars.get('c2pp', 0.0)) #pars.get('c2pp', 0.0)
-        c4 = f_**2 * pars.get('c2pp', 0.0) + (b1 * f_) * pars.get('c4pp', 0.0) #pars.get('c4pp', 0.0)
+        c0 = b1**2 * pars.get('c0', 0.0)
+        c2 = b1*f_ * (pars.get('c0', 0.0) + pars.get('c2pp', 0.0))
+        c4 = f_**2 * pars.get('c2pp', 0.0) + (b1 * f_) * pars.get('c4pp', 0.0)
 
         ctilde = pars.get('ch', 0.0)
 
-        alphashot0 = 1e-4*pars.get('a0', 0.0) / self.mean_density
-        alphashot2 = 1e-4*pars.get('a2', 0.0) * (0.15*38.36415260435053/ self.mean_density)
-        PshotP     = 1e-4 * pars.get('PshotP', 1/self.mean_density)
+        alphashot0 = pars.get('a0', 0.0)
+        alphashot2 = pars.get('a2', 0.0)
+        PshotP = pars.get('PshotP', 1/self.mean_density)
 
         X_FoG = pars.get('X_FoG', 0.0)
 
@@ -272,6 +275,9 @@ class FOLPSCalculator:
             pars['bGamma3'] = pars['bGamma3_tilde'] / ( s8**4 * A_AP )
 
         # Power spectrum counterterms
+        sigv = 6.193880254279262
+        fsat = 0.15
+
         if 'c0_tilde' in pars:
             pars['c0'] = pars['c0_tilde'] / (A_AP * s8**2)
         if 'c2pp_tilde' in pars:
@@ -281,7 +287,7 @@ class FOLPSCalculator:
         if 'a0_tilde' in pars:
             pars['a0'] = pars['a0_tilde'] / A_AP
         if 'a2_tilde' in pars:
-            pars['a2'] = pars['a2_tilde'] / A_AP
+            pars['a2'] = fsat*sigv**2 * pars['a2_tilde'] / A_AP
 
         # Bispectrum
         if 'c1_tilde' in pars:
@@ -301,6 +307,7 @@ class FOLPSCalculator:
 
         folps = self._compute_folps_quantities(pars)
         f0 = FOLPS.f0_function(self.zcen,folps['folps_cosmo']['Omega_m'])
+        tmp = FOLPS.f0_function(0.0,folps['folps_cosmo']['Omega_m'])
 
         if self.reparametrize:
             pars = self._apply_reparametrization(pars.copy(), folps)
