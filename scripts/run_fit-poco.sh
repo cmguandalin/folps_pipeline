@@ -36,6 +36,4 @@ eval "$(/cosma/local/anaconda3/202309/bin/conda shell.bash hook)"
 conda activate /cosma/apps/dp322/dc-guan2/conda-envs/folps
 
 export GLOBAL_DIR="/cosma/home/dp322/dc-guan2/folps/pipeline/"
-#python -u $GLOBAL_DIR/src/inference.py -config $GLOBAL_DIR/$CONFIG_FILE
-# Use the following if there's no intention to run it in your pc
 python -u $GLOBAL_DIR/src/inference.py -config $GLOBAL_DIR/$CONFIG_FILE -ncpus $SLURM_CPUS_PER_TASK
