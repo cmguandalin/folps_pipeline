@@ -17,7 +17,7 @@ Important caveats:
 
 class FOLPSCalculator:
 
-    def __init__(self, mean_density, redshift,
+    def __init__(self, mean_density, redshift, tracer,
                  model='EFT', damping=None, use_TNS_model=False,
                  AP=True, cosmo_fid=None, reparametrize=False):
         '''
@@ -27,6 +27,7 @@ class FOLPSCalculator:
 
         self.mean_density = mean_density
         self.zcen         = redshift
+        self.tracer       = tracer
         self.expfactor    = 1.0/(1.0+redshift) # for baccoemu
         self.AP           = AP
         self.cosmo_fid    = cosmo_fid or  {'omega_b' : 0.02237,
@@ -39,10 +40,8 @@ class FOLPSCalculator:
 
         ######################
         # Initialise linear power spectrum (bacco) emulator
-        print('Initialising baccoemu for the linear power spectrum...')
-        time_i = time()
         self._initialise_linear_pk_baccoemu()
-        print('Total time:', (time()-time_i)/60)
+        #print(f'Initialised baccoemu for {self.tracer} at z={self.zcen}.')
 
         self.model = model
         self.damping = damping
@@ -92,8 +91,11 @@ class FOLPSCalculator:
         self.kemul_pk = np.logspace(-4, np.log10(3), num=1000)
 
     def _get_linear_pk(self, pars):
+        #data_path = '/Users/austerlitz/folps/folpsD/compare/pk_linear_simtocmass.txt'
+        #self.k_arr, self.pk_arr = np.loadtxt(data_path, unpack=True)
+        #return self.k_arr, self.pk_arr
 
-        # bacco calls "O"mega_x "o"mega_x.
+        # bacco calls Omega_x omega_x.
 
         bacco_cosmo_pars = {
                     'omega_cold'    : (pars['omega_cdm'] + pars['omega_b']) / pars['h']**2,
@@ -106,6 +108,7 @@ class FOLPSCalculator:
                     'wa'            :  0.0,
                     'expfactor'     :  self.expfactor
                 }
+        '''
         bacco_cosmo_fid = {
                     'omega_cold'    : (self.cosmo_fid['omega_cdm'] + self.cosmo_fid['omega_b']) / self.cosmo_fid['h']**2,
                     'omega_baryon'  : self.cosmo_fid['omega_b']/self.cosmo_fid['h']**2,
@@ -117,6 +120,7 @@ class FOLPSCalculator:
                     'wa'            :  0.0,
                     'expfactor'     :  self.expfactor
                 }
+        '''
 
         self.kemul_pk, self.pk_lin = self.emulator.get_linear_pk(k=self.kemul_pk, cold=True, **bacco_cosmo_pars)
         self.kemul_pk, self.pk_nw  = self.emulator.get_no_wiggles_pk(k=self.kemul_pk,cold=True,**bacco_cosmo_pars)
@@ -124,6 +128,8 @@ class FOLPSCalculator:
         tmppk_ = interp1d(np.log(self.kemul_pk),np.log(self.pk_lin),
                           bounds_error=False,fill_value='extrapolate',kind='cubic')(np.log(tmpk_))
         self.sigma8_at_z = self._sigma_from_pk(tmpk_,np.exp(tmppk_))
+
+        #print(f'σ8(z={self.zcen}) = {self.sigma8_at_z}')
 
         self.output_dict = {'kemul_pk': self.kemul_pk,
                             'pk_lin': self.pk_lin,
@@ -275,8 +281,12 @@ class FOLPSCalculator:
             pars['bGamma3'] = pars['bGamma3_tilde'] / ( s8**4 * A_AP )
 
         # Power spectrum counterterms
-        sigv = 6.193880254279262
-        fsat = 0.15
+        if 'LRG' in self.tracer:
+            sigv = 150*(10)**(1/3)*(1+0.8)**(1/2)/70.
+            fsat = 0.15
+        elif 'QSO' in self.tracer:
+            sigv = 150*(10)**(0.7/3)*(2.4)**(1/2)/70.
+            fsat = 0.03
 
         if 'c0_tilde' in pars:
             pars['c0'] = pars['c0_tilde'] / (A_AP * s8**2)
@@ -307,7 +317,6 @@ class FOLPSCalculator:
 
         folps = self._compute_folps_quantities(pars)
         f0 = FOLPS.f0_function(self.zcen,folps['folps_cosmo']['Omega_m'])
-        tmp = FOLPS.f0_function(0.0,folps['folps_cosmo']['Omega_m'])
 
         if self.reparametrize:
             pars = self._apply_reparametrization(pars.copy(), folps)
@@ -341,7 +350,7 @@ class FOLPSCalculator:
         bpars = [
             pars['b1'],
             pars['b2'],
-            pars.get('bG2', 0.0),
+            2.0*pars.get('bG2', 0.0),
             pars.get('c1', 0.0),
             pars.get('c2', 0.0),
             pars.get('Bshot', 0.0) / self.mean_density,
