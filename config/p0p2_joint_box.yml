@@ -1,0 +1,14 @@
+joint:
+  configs:
+    LRG1: '/cosma/home/dp322/dc-guan2/folps/pipeline/config/mocks/p0p2_LRG1_box.yml'
+    LRG2: '/cosma/home/dp322/dc-guan2/folps/pipeline/config/mocks/p0p2_LRG2_box.yml'
+    QSO: '/cosma/home/dp322/dc-guan2/folps/pipeline/config/mocks/p0p2_QSO_box.yml'
+
+path_to_save: '/cosma8/data/dp322/dc-guan2/results/'
+file_name: 'p0p2_box_joint_LRG12QSO'
+
+shared_parameters:
+    - omega_cdm
+    - omega_b
+    - h
+    - ln10^{10}A_s

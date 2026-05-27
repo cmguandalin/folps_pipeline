@@ -1,0 +1,95 @@
+backend: 'folps'
+
+data_path: '/cosma8/data/dp322/dc-guan2/data/QSO/boxes/'
+
+data_files:
+    '0': 'pk0_box_phmean'
+    '2': 'pk2_box_phmean'
+
+cov_file: 'cov.npy'
+number_of_mocks: 1000
+rescale: false
+
+reparametrize: true
+
+path_to_save: '/cosma8/data/dp322/dc-guan2/results/'
+file_name: 'p0p2_QSO_box_kmax0.20_nsfix'
+
+k_edges:
+    '0':
+        - 0.02
+        - 0.20
+    '2':
+        - 0.02
+        - 0.20
+
+mean_density: 0.00017
+redshift: 1.4
+tracer: 'QSO'
+
+prior:
+    'omega_cdm':
+        'type': 'Uni'
+        'lim':
+            - 0.05
+            - 0.20
+    'omega_b':
+        'type': 'Gauss'
+        'lim':
+            - 0.02218
+            - 0.00055
+    'h':
+        'type': 'Uni'
+        'lim':
+            - 0.50
+            - 0.90
+    'n_s':
+        'type': 'Fix'
+        'lim':
+            - 0.9649
+            #- 0.042
+    'ln10^{10}A_s':
+        'type': 'Uni'
+        'lim':
+            - 2
+            - 4
+    'b1_tilde':
+        'type': 'Uni'
+        'lim':
+            - 0.1
+            - 4.0
+    'b2_tilde':
+        'type': 'Gauss'
+        'lim':
+            - 0
+            - 5
+    'bG2_tilde':
+        'type': 'Gauss'
+        'lim':
+            - -0.046252010415667705
+            - 5
+    'bGamma3_tilde':
+        'type': 'Gauss'
+        'lim':
+            - 0.014350791802752354
+            - 0.026205793726765167
+    'c0_tilde':
+        'type': 'Gauss'
+        'lim': 
+            - 0
+            - 50
+    'c2pp_tilde':
+        'type': 'Gauss'
+        'lim': 
+            - 0
+            - 50
+    'a0_tilde':
+        'type': 'Gauss'
+        'lim':
+             - 0
+             - 2
+    'a2_tilde':
+        'type': 'Gauss'
+        'lim':
+             - 0
+             - 5
