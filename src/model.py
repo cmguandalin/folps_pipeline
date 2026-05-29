@@ -4,7 +4,7 @@ import baccoemu # REMOVE THIS IF NOT USING FOLPS
 
 import os, sys
 os.environ['FOLPS_BACKEND'] = 'numpy'  #'numpy' or 'jax'
-sys.path.append('/cosma/home/dp322/dc-guan2/folps/folpsD/')
+sys.path.append('/Users/austerlitz/folps/folpsD/')
 import folps as FOLPS
 
 from time import time
@@ -289,7 +289,7 @@ class FOLPSCalculator:
             fsat = 0.03
 
         if 'c0_tilde' in pars:
-            pars['c0'] = pars['c0_tilde'] / (A_AP * s8**2)
+            pars['c0']   = pars['c0_tilde'] / (A_AP * s8**2)
         if 'c2pp_tilde' in pars:
             pars['c2pp'] = pars['c2pp_tilde'] / (A_AP * s8**2)
         if 'c4pp_tilde' in pars:
@@ -347,15 +347,16 @@ class FOLPSCalculator:
         if self.reparametrize:
             pars = self._apply_reparametrization(pars.copy(), folps)
 
+        kNL = 0.3
         bpars = [
             pars['b1'],
             pars['b2'],
             2.0*pars.get('bG2', 0.0),
-            pars.get('c1', 0.0),
-            pars.get('c2', 0.0),
+            pars.get('c1', 0.0)/(kNL**2),
+            pars.get('c2', 0.0)/(kNL**2),
             pars.get('Bshot', 0.0) / self.mean_density,
             pars.get('Pshot', 0.0) / self.mean_density,
-            pars.get('X_FoG_bk', 1.0)
+            pars.get('X_FoG_bk', 0.0)
         ]
 
         k1k2T = np.vstack([folps['k'],folps['k']]).T  # List of pairs of k. ( B = B(k1,k2) )
@@ -400,15 +401,16 @@ class FOLPSCalculator:
         if self.reparametrize:
             pars = self._apply_reparametrization(pars.copy(), folps)
 
+        kNL = 0.3
         bpars = [
             pars['b1'],
             pars['b2'],
-            pars.get('bG2', 0.0),
-            pars.get('c1', 0.0),
-            pars.get('c2', 0.0),
+            2.0*pars.get('bG2', 0.0),
+            pars.get('c1', 0.0)/(kNL**2),
+            pars.get('c2', 0.0)/(kNL**2),
             pars.get('Bshot', 0.0) / self.mean_density,
             pars.get('Pshot', 0.0) / self.mean_density,
-            pars.get('X_FoG_bk', 1.0)
+            pars.get('X_FoG_bk', 0.0)
         ]
 
         f0 = FOLPS.f0_function(self.zcen, folps['folps_cosmo']['Omega_m'])
@@ -589,7 +591,7 @@ class ModellingFunction:
         if self.multipoles_bk:
             #k_theory = self.k_theory_window['Bk'] if self.k_theory_window['Bk'] is not None else None
             if self.k_theory_window is not None and self.k_theory_window.get('Bk') is not None:
-                k_theory = self.k_theory_window['Pk']
+                k_theory = self.k_theory_window['Bk']
             else:
                 k_theory = None
 
@@ -604,6 +606,12 @@ class ModellingFunction:
                     for l in self.multipoles_bk[L]:
                         combined_list.append(bk_2d[l].ravel())
                     combined = np.concatenate(combined_list)
+                    if combined.shape[0] != self.window_matrix['Bk'][L].shape[1]:
+                        raise ValueError(
+                            f"Bispectrum window shape mismatch for {L}: "
+                            f"window expects {self.window_matrix['Bk'][L].shape[1]} "
+                            f"model values, got {combined.shape[0]}."
+                        )
                     Bconv = np.dot(self.window_matrix['Bk'][L], combined).reshape(len(k_theory), len(k_theory))
                     Bdiag = interp1d(k_theory,np.diag(Bconv),kind='cubic', fill_value='extrapolate')
                     # Now, the Bdiag was computed for the 64 bins of the window. So we will interpolate it and match
