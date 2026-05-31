@@ -10,8 +10,9 @@ This guide explains how to set up the environment and install the dependencies r
 
 ```bash
 mkdir -p /path/to/conda-envs
-conda create --prefix /path/to/conda-envs/folps python=3.14 -y
+conda create --prefix /path/to/conda-envs/folps python=3.10 -y
 ```
+Obs: I'm using python 3.10 due to jax incompatibility when dealing with the DESI-generated power spectrum window matrices.
 
 Activate your environment:
 
