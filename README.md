@@ -6,55 +6,41 @@ This guide explains how to set up the environment and install the dependencies r
 
 ## 1. Create a Conda Environment
 
-(Recommended) Create a new Conda environment:
+(Recommended) Run 
 
 ```bash
-mkdir -p /path/to/conda-envs
-conda create --prefix /path/to/conda-envs/folps python=3.10 -y
+bash create_folps_env.sh folps
 ```
-Obs: I'm using python 3.10 due to jax incompatibility when dealing with the DESI-generated power spectrum window matrices. Currently, I'm using the following versions:
-`numpy 1.26.3`
-`scipy 1.15.3`
-`jax 0.4.23`
-`jaxlib 0.4.23`
-`multiprocess 0.70.19`
-`pocomc 1.2.6`
+
+to create a conda environment with the versions I'm currently using. Some versions are specific due to a jax incompatibility when dealing with the DESI-generated power spectrum window matrices. Check that script for the current versions.
 
 Activate your environment:
 
 ```bash
-conda activate /path/to/conda-envs/folps
+conda activate folps
 ```
 
-## 2. Install dependencies
-```bash
-pip install pocomc
-pip install baccoemu
-pip install pyyaml
-pip install multiprocess
-```
-
-## 3. Download the BACCO Emulator Cache
+## 2. Download the BACCO Emulator Cache
 
 BACCO emulator downloads additional files on the first run.
 
 Some HPC systems do not allow for connection during execution time. 
 In that case, you must provide the emulator cache manually.
 
-### 3.1. Locate the BACCO path
+### 2.1. Locate the BACCO path
 
 Run
 ```bash
 pip show baccoemu
 ```
 
-This will show the installation location of the package (e.g., `/my/path/to/conda-envs/folps/lib/python3.14/site-packages/baccoemu`).
+This will show the installation location of the package (e.g., `/my/path/to/conda-envs/folps/lib/python3.10/site-packages/baccoemu`).
 
-### 3.2. Add the cache files
+### 2.2. Add the cache files
 
 Unzip the provided cache file (`bacco_cache.zip`) inside the `baccoemu` directory.
 
-## 4. Configure FOLPS Backend
+## 3. Configure FOLPS Backend
 Before running the pipeline, edit
 ```bash
 src/model.py
@@ -69,23 +55,23 @@ sys.path.append('/path/to/folps/folpsD/')
 import folps as FOLPS
 ```
 
-## 5. Update the paths in the configuration files
+## 4. Update the paths in the configuration files
 Before running the pipeline, make sure all required paths are correctly set in the `.yml` files.
 
-### 5.1. Guidance for the current set up (temporary)
+### 4.1. Guidance for the current set up (temporary)
 Choose one of the available files inside `config/` as an `example.yml`
 
 For the AP reparametrization check, for example, `config/p0p2b0_LRG2_nowindow_reparam.yml`
 Notice that, if you don't rename the paramameters `PAR` to be reparametrized by `PAR_tilde` (i.e., adding the `_tilde` after the parameter name), the reparametrization will not be applied to the parameter. You must also set `reparametrize: true` in the `.yml` file.
 
-## 6. Usage
-### 6.1. Submit on HPC
+## 5. Usage
+### 5.1. Submit on HPC
 ```bash
 sbatch scripts/run_fit-poco.sh config/example.yml
 ```
 Track the process with `tail -f logs/JOB_ID.out`
 
-### 6.2. Local usage
+### 5.2. Local usage
 ```bash
 nohup python -u src/inference.py -config config/example.yml > nohup.out 2>&1 &
 ```
