@@ -21,6 +21,7 @@ python -m pip install \
   "jaxlib==0.4.23" \
   "multiprocess==0.70.19" \
   "pocomc==1.2.6" \
+  "baccoemu" \
   "h5py" \
   "pyyaml"
 
