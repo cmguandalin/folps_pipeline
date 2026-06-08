@@ -57,7 +57,7 @@ class JointLikelihood:
                     if param not in joint_priors:
                         joint_priors[param] = prior_info
                     elif joint_priors[param] != prior_info:
-                        raise ValueError(f'Shared parameter {param} has inconsistent priors.'
+                        raise ValueError(f'Shared parameter {param} has inconsistent priors. '
                                          f'Problem found while processing {run_name}.'
                                         )
                 else:
@@ -144,7 +144,7 @@ class JointLikelihood:
         # ...
 
 class Likelihood:
-    def __init__(self, priors_dict, model_function, debug_filename=None):
+    def __init__(self, priors_dict, model_function, emulator, debug_filename=None):
         """
             Initialise the Likelihood class.
 
@@ -154,6 +154,7 @@ class Likelihood:
         """
         self.priors_dict = priors_dict
         self.model_function = model_function
+        self.emulator = emulator
 
         self.debug_filename = debug_filename
         if self.debug_filename is not None:
@@ -203,21 +204,34 @@ class Likelihood:
         # Convert theta (list) to dictionary
         pars = self.model_function.get_parameters_dictionary(theta)
 
-        # BACCO HARD PRIOR
-        # the following step can be removed if the priors' range
-        # are the same as the emulators (added because of bacco:
-        # for some parameters, e.g. Omega_b, = omega_b/h^2 falls
-        # outside [0.03,0.07])
-        Omega_b = pars.get('omega_b',0.02237) / pars.get('h',0.6736)**2
-        if (Omega_b < 0.03) or (Omega_b > 0.07):
+        if self.emulator:
+            if self.emulator == 'bacco':
+                # BACCO HARD PRIOR
+                # the following step can be removed if the priors' range
+                # are the same as the emulators (added because of bacco:
+                # for some parameters, e.g. Omega_b, = omega_b/h^2 falls
+                # outside [0.03,0.07])
+                Omega_b = pars.get('omega_b',0.02237) / pars.get('h',0.6736)**2
+                if (Omega_b < 0.03) or (Omega_b > 0.07):
+                    return -np.inf
+                Omega_cold = ( pars.get('omega_b',0.02237) + pars.get('omega_cdm',0.120) ) / pars.get('h',0.6736)**2
+                if (Omega_cold < 0.15) or (Omega_cold > 0.6):
+                    return -np.inf
+                if ( pars.get('h',0.6736) < 0.5 ) or ( pars.get('h',0.6736) > 0.9 ):
+                    return -np.inf
+                if pars.get('w0',-1.0) + pars.get('wa',0.0) > 0.0:
+                    return -np.inf
+            elif self.emulator == 'jaxmapse':
+                if pars.get('w0',-1.0) + pars.get('wa',0.0) > 0.0:
+                    return -np.inf
+            else:
+                raise ValueError(f'Unknown linear power spectrum emulator: {self.emulator}')
+        
+        try:
+            m = self.model_function.compute_model_vector(theta)
+        except (ValueError, FloatingPointError):
             return -np.inf
-        Omega_cold = ( pars.get('omega_b',0.02237) + pars.get('omega_cdm',0.120) ) / pars.get('h',0.6736)**2
-        if (Omega_cold < 0.15) or (Omega_cold > 0.6):
-            return -np.inf
-        if ( pars.get('h',0.6736) < 0.5 ) or ( pars.get('h',0.6736) > 0.9 ):
-            return -np.inf
-
-        m = self.model_function.compute_model_vector(theta)
+        
         diff = m - data_
         chi2_try = np.dot(diff.T, np.dot(icov_, diff))
 
