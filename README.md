@@ -50,8 +50,8 @@ pip install .
 The yml file has an extra option `emulator`. If nothing is passed, it assumes baccoemu is being used. Otherwise, set it to 
 `emulator: 'jaxmapse'`
 and update the following paths
-jaxmapse_plin_path: '/path/to/cache/EMU_PLIN/training_classy_plin_pnw_mnuw0wacdm_nk200v2_200000/plin'
-jaxmapse_pnw_path: '/path/to/cache/EMU_PNW/training_classy_plin_pnw_mnuw0wacdm_nk200v2_200000/pnw'
+`jaxmapse_plin_path: '/path/to/cache/EMU_PLIN/training_classy_plin_pnw_mnuw0wacdm_nk200v2_200000/plin'`
+`jaxmapse_pnw_path: '/path/to/cache/EMU_PNW/training_classy_plin_pnw_mnuw0wacdm_nk200v2_200000/pnw'`
 
 ## 4. Configure FOLPS Backend
 Before running the pipeline, edit
