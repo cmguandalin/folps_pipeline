@@ -40,7 +40,20 @@ This will show the installation location of the package (e.g., `/my/path/to/cond
 
 Unzip the provided cache file (`bacco_cache.zip`) inside the `baccoemu` directory.
 
-## 3. Configure FOLPS Backend
+## 3. Install jaxmapse if dealing with w0wa priors outside bacco range
+```bash
+git clone --branch develop https://github.com/CosmologicalEmulators/jaxmapse.git
+cd jaxmapse
+pip install .
+```
+### 3.1 Changes in the .yml files
+The yml file has an extra option `emulator`. If nothing is passed, it assumes baccoemu is being used. Otherwise, set it to 
+`emulator: 'jaxmapse'`
+and update the following paths
+jaxmapse_plin_path: '/path/to/cache/EMU_PLIN/training_classy_plin_pnw_mnuw0wacdm_nk200v2_200000/plin'
+jaxmapse_pnw_path: '/path/to/cache/EMU_PNW/training_classy_plin_pnw_mnuw0wacdm_nk200v2_200000/pnw'
+
+## 4. Configure FOLPS Backend
 Before running the pipeline, edit
 ```bash
 src/model.py
@@ -55,23 +68,23 @@ sys.path.append('/path/to/folps/folpsD/')
 import folps as FOLPS
 ```
 
-## 4. Update the paths in the configuration files
+## 5. Update the paths in the configuration files
 Before running the pipeline, make sure all required paths are correctly set in the `.yml` files.
 
-### 4.1. Guidance for the current set up (temporary)
+### 5.1. Guidance for the current set up (temporary)
 Choose one of the available files inside `config/` as an `example.yml`
 
 For the AP reparametrization check, for example, `config/p0p2b0_LRG2_nowindow_reparam.yml`
 Notice that, if you don't rename the paramameters `PAR` to be reparametrized by `PAR_tilde` (i.e., adding the `_tilde` after the parameter name), the reparametrization will not be applied to the parameter. You must also set `reparametrize: true` in the `.yml` file.
 
-## 5. Usage
-### 5.1. Submit on HPC
+## 6. Usage
+### 6.1. Submit on HPC
 ```bash
 sbatch scripts/run_fit-poco.sh config/example.yml
 ```
 Track the process with `tail -f logs/JOB_ID.out`
 
-### 5.2. Local usage
+### 6.2. Local usage
 ```bash
 nohup python -u src/inference.py -config config/example.yml > nohup.out 2>&1 &
 ```
