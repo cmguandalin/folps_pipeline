@@ -312,7 +312,7 @@ if __name__ == '__main__':
         ##############
         # LIKELIHOOD #
         ##############
-        likelihood_single = clike.Likelihood(priors, model_function)#, debug_filename="/Users/austerlitz/folps/pipeline/test_debug_2.txt")
+        likelihood_single = clike.Likelihood(priors, model_function, emulator)#, debug_filename="/Users/austerlitz/folps/pipeline/test_debug_2.txt")
         prior = likelihood_single.initialise_prior()
 
         return {
