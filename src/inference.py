@@ -1,6 +1,19 @@
+import os,sys
+
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["TF_NUM_INTRAOP_THREADS"] = "1"
+os.environ["TF_NUM_INTEROP_THREADS"] = "1"
+os.environ.setdefault(
+    "XLA_FLAGS",
+    "--xla_cpu_multi_thread_eigen=false intra_op_parallelism_threads=1"
+)
+
 import numpy as np
 import argparse
-import os,sys
 import glob
 import yaml
 import h5py
@@ -12,16 +25,8 @@ import likelihood as clike
 import model as model
 from datetime import datetime
 import multiprocess as mp
-ctx = mp.get_context('fork')
 
-#os.environ['TF_NUM_INTRAOP_THREADS'] = '1'
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
-os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
-os.environ["TF_NUM_INTRAOP_THREADS"] = "1"
-os.environ["TF_NUM_INTEROP_THREADS"] = "1"
+ctx = mp.get_context('spawn')
 
 sys.stderr = sys.stdout
 
@@ -34,10 +39,44 @@ global_likelihood = None
 def likelihood_wrapper(theta):
     return global_likelihood.ln_prob(theta, global_full_data, global_inv_cov)
 
+def initialise_worker(likelihood, full_data, inv_cov):
+    global global_full_data, global_inv_cov, global_likelihood
+    global_full_data  = full_data
+    global_inv_cov    = inv_cov
+    global_likelihood = likelihood
+
+def initialise_worker_from_config(run_builder, config_):
+    global global_full_data, global_inv_cov, global_likelihood
+
+    if config_.get('joint'):
+        runs = {
+            name: run_builder(load_yaml(path))
+            for name, path in config_['joint']['configs'].items()
+        }
+        global_likelihood = clike.JointLikelihood(
+            runs = runs,
+            shared_parameters = config_['shared_parameters'],
+        )
+        global_full_data = None
+        global_inv_cov   = None
+    else:
+        run = run_builder(config_)
+        global_likelihood = run['likelihood']
+        global_full_data  = run['full_data']
+        global_inv_cov    = run['inv_cov']
+
 def load_yaml(path_):
     with open(path_, 'r') as file_:
         config_ = yaml.safe_load(file_)
     return config_
+
+def uses_jaxmapse_emulator(config_):
+    if config_.get('joint'):
+        return any(
+            load_yaml(path).get('emulator') == 'jaxmapse'
+            for path in config_['joint']['configs'].values()
+        )
+    return config_.get('emulator') == 'jaxmapse'
 
 if __name__ == '__main__':
 
@@ -77,14 +116,17 @@ if __name__ == '__main__':
         redshift     = config['redshift']
 
         # Removed the emulator option. Only folps now.
-        backend      = config['backend']
-        if backend == 'emulator':
+        backend = config['backend']
+        if backend == 'bicker':
             cache_path = config['cache_path']
         else:
             theory_model  = config.get('theory_model','EFT')
             damping       = config.get('damping', None)
             use_TNS_model = config.get('TNS', False)
             AP            = config.get('AP', True)
+            emulator      = config.get('emulator', 'bacco')
+            jaxmapse_plin_path = config.get('jaxmapse_plin_path')
+            jaxmapse_pnw_path  = config.get('jaxmapse_pnw_path')
 
         #######################
         # CLEANING PARAMETERS #
@@ -213,7 +255,10 @@ if __name__ == '__main__':
                     damping=damping,
                     use_TNS_model=use_TNS_model,
                     AP=AP,
-                    reparametrize=reparametrize
+                    reparametrize=reparametrize,
+                    emulator=emulator,
+                    jaxmapse_plin_path=jaxmapse_plin_path,
+                    jaxmapse_pnw_path=jaxmapse_pnw_path
                 )
             else:
                 # Use the emulator
@@ -245,7 +290,10 @@ if __name__ == '__main__':
                     damping=damping,
                     use_TNS_model=use_TNS_model,
                     AP=AP,
-                    reparametrize=reparametrize
+                    reparametrize=reparametrize,
+                    emulator=emulator,
+                    jaxmapse_plin_path=jaxmapse_plin_path,
+                    jaxmapse_pnw_path=jaxmapse_pnw_path
                 )
             else:
                 # Use the emulator
@@ -340,17 +388,18 @@ if __name__ == '__main__':
     print('\n')
 
     # number of effective particles
-    neff = 4000
-    #neff = 800
+    #neff = 4000
+    neff = 800
     # number of effectively independent samples
-    ntot = 20000
-    #ntot = 3000
+    #ntot = 20000
+    ntot = 1000
 
+    
     if cmdline.ncpus is not None:
         ncpus = int(cmdline.ncpus)
     else:
         ncpus = 1
-
+    
     print(f'Starting sampling at {datetime.now()} with {ncpus} CPUs. \n')
 
     '''
@@ -378,31 +427,34 @@ if __name__ == '__main__':
     '''
 
     if ncpus > 1:
-        with ctx.Pool(ncpus) as pool:
+        with ctx.Pool( ncpus,
+                       initializer = initialise_worker_from_config,
+                       initargs = (build_single_tracer_run, config)
+                     ) as pool:
         #with mp.Pool(ncpus) as pool:
             sampler = pc.Sampler(
-                prior=prior,
-                likelihood=likelihood_wrapper,
-                n_effective=neff,
-                pool=pool,
-                output_dir=path_to_save,
-                output_label=file_name
-            )
+                                    prior        = prior,
+                                    likelihood   = likelihood_wrapper,
+                                    n_effective  = neff,
+                                    pool         = pool,
+                                    output_dir   = path_to_save,
+                                    output_label = file_name
+                                )
             sampler.run(n_total=ntot, progress=True, save_every=200)
 
     else:
         sampler = pc.Sampler(
-            prior=prior,
-            likelihood=likelihood_wrapper,
-            n_effective=neff,
-            output_dir=path_to_save,
-            output_label=file_name
-        )
+                                prior        = prior,
+                                likelihood   = likelihood_wrapper,
+                                n_effective  = neff,
+                                output_dir   = path_to_save,
+                                output_label = file_name
+                            )
         sampler.run(n_total=ntot, progress=True, save_every=200)
 
     samples, weights, logl, logp = sampler.posterior()
 
-    print(f"Sampling ended at: {datetime.now()}")
+    print(f'Sampling ended at: {datetime.now()}')
 
     # Save results
     os.makedirs(path_to_save, exist_ok=True)
@@ -410,11 +462,11 @@ if __name__ == '__main__':
     print(f"Results saved to {os.path.join(path_to_save, file_name + '.npy')}")
 
     results = {}
-    results['priors'] = priors
+    results['priors']  = priors
     results['samples'] = samples
     results['weights'] = weights
-    results['logl'] = logl
-    results['logp'] = logp
+    results['logl']    = logl
+    results['logp']    = logp
 
     np.save(os.path.join(path_to_save, file_name + '.npy'), results)
 
