@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.interpolate import interp1d
-import baccoemu # REMOVE THIS IF NOT USING FOLPS
 
 import os, sys
 os.environ['FOLPS_BACKEND'] = 'numpy'  #'numpy' or 'jax'
@@ -19,7 +18,8 @@ class FOLPSCalculator:
 
     def __init__(self, mean_density, redshift, tracer,
                  model='EFT', damping=None, use_TNS_model=False,
-                 AP=True, cosmo_fid=None, reparametrize=False):
+                 AP=True, cosmo_fid=None, reparametrize=False,
+                 emulator='bacco', jaxmapse_plin_path=None, jaxmapse_pnw_path=None):
         '''
             Damping: either "None" or " 'lor' "
             cosmo_fis: for AP;
@@ -35,13 +35,18 @@ class FOLPSCalculator:
                                           'omega_nu' : 0.00064420,
                                           'h'        : 0.6736,
                                           'ns'       : 0.9649,
-                                          'As'       : 2.0830e-9}
+                                          'As'       : 2.0830e-9,
+                                          'w0'       : -1.0,
+                                          'wa'       : 0.0}
         self.reparametrize = reparametrize
+        self.linear_pk_emulator = emulator
+        self.jaxmapse_plin_path = jaxmapse_plin_path
+        self.jaxmapse_pnw_path  = jaxmapse_pnw_path
 
         ######################
-        # Initialise linear power spectrum (bacco) emulator
-        self._initialise_linear_pk_baccoemu()
-        #print(f'Initialised baccoemu for {self.tracer} at z={self.zcen}.')
+        # Initialise linear power spectrum emulator
+        self._initialise_linear_pk_emulator()
+        #print(f'Initialised {self.linear_pk_emulator} for {self.tracer} at z={self.zcen}.')
 
         self.model = model
         self.damping = damping
@@ -85,42 +90,66 @@ class FOLPSCalculator:
         return np.sqrt(np.trapz(integrand, np.log(k_)) / (2.0 * np.pi**2))
 
     ########################################################
-    # BACCOEMU FOR LINEAR POWER SPECTRUM
+    # EMULATORS FOR LINEAR POWER SPECTRUM
+    def _initialise_linear_pk_emulator(self):
+        valid_emulators = {'bacco', 'jaxmapse'}
+        if self.linear_pk_emulator not in valid_emulators:
+            raise ValueError(
+                f"Unknown linear power spectrum emulator '{self.linear_pk_emulator}'. "
+                f"Choose one of {sorted(valid_emulators)}."
+            )
+
+        if self.linear_pk_emulator == 'bacco':
+            self._initialise_linear_pk_baccoemu()
+        elif self.linear_pk_emulator == 'jaxmapse':
+            self._initialise_linear_pk_jaxmapse()
+
     def _initialise_linear_pk_baccoemu(self):
+        import baccoemu
+
         self.emulator = baccoemu.Matter_powerspectrum(verbose=False)
         self.kemul_pk = np.logspace(-4, np.log10(3), num=1000)
 
-    def _get_linear_pk(self, pars):
-        #data_path = '/Users/austerlitz/folps/folpsD/compare/pk_linear_simtocmass.txt'
-        #self.k_arr, self.pk_arr = np.loadtxt(data_path, unpack=True)
-        #return self.k_arr, self.pk_arr
+    def _initialise_linear_pk_jaxmapse(self):
+        if self.jaxmapse_plin_path is None or self.jaxmapse_pnw_path is None:
+            raise ValueError(
+                "The jaxmapse emulator requires both 'jaxmapse_plin_path' and 'jaxmapse_pnw_path' "
+                "in the config file."
+            )
 
+        from pklin_emulator_jit import PkEmulator
+        import jaxmapse
+
+        self.emulator = PkEmulator(
+            path_plin=self.jaxmapse_plin_path,
+            path_pnw=self.jaxmapse_pnw_path
+        )
+        self._predict_plin_jaxmapse = self.emulator.get_jit_predict_plin()
+        self._predict_pnw_jaxmapse  = self.emulator.get_jit_predict_pnw()
+        self.kemul_pk  = np.asarray(self.emulator._plin['k'])
+        self._jaxmapse = jaxmapse
+
+    def _get_linear_pk(self, pars):
+        if self.linear_pk_emulator == 'bacco':
+            return self._get_linear_pk_bacco(pars)
+        if self.linear_pk_emulator == 'jaxmapse':
+            return self._get_linear_pk_jaxmapse(pars)
+        raise ValueError(f"Unknown linear power spectrum emulator '{self.linear_pk_emulator}'.")
+
+    def _get_linear_pk_bacco(self, pars):
         # bacco calls Omega_x omega_x.
 
         bacco_cosmo_pars = {
                     'omega_cold'    : (pars['omega_cdm'] + pars['omega_b']) / pars['h']**2,
                     'omega_baryon'  : pars['omega_b']/pars['h']**2,
                     'hubble'        : pars['h'],
-                    'neutrino_mass' : pars.get('m_nu', 0.06),
+                    'neutrino_mass' : pars.get('m_ncdm', pars.get('m_nu', 0.06)),
                     'ns'            : pars.get('n_s', 0.9649),
                     'A_s'           : np.exp(pars['ln10^{10}A_s']) / 1e10,
-                    'w0'            : -1.0,
-                    'wa'            :  0.0,
-                    'expfactor'     :  self.expfactor
+                    'w0'            : pars.get('w0', -1.0),
+                    'wa'            : pars.get('wa', 0.0),
+                    'expfactor'     : self.expfactor
                 }
-        '''
-        bacco_cosmo_fid = {
-                    'omega_cold'    : (self.cosmo_fid['omega_cdm'] + self.cosmo_fid['omega_b']) / self.cosmo_fid['h']**2,
-                    'omega_baryon'  : self.cosmo_fid['omega_b']/self.cosmo_fid['h']**2,
-                    'hubble'        : self.cosmo_fid['h'],
-                    'neutrino_mass' : 0.06,
-                    'ns'            : self.cosmo_fid['ns'],
-                    'A_s'           : self.cosmo_fid['As'],
-                    'w0'            : -1.0,
-                    'wa'            :  0.0,
-                    'expfactor'     :  self.expfactor
-                }
-        '''
 
         self.kemul_pk, self.pk_lin = self.emulator.get_linear_pk(k=self.kemul_pk, cold=True, **bacco_cosmo_pars)
         self.kemul_pk, self.pk_nw  = self.emulator.get_no_wiggles_pk(k=self.kemul_pk,cold=True,**bacco_cosmo_pars)
@@ -129,12 +158,99 @@ class FOLPSCalculator:
                           bounds_error=False,fill_value='extrapolate',kind='cubic')(np.log(tmpk_))
         self.sigma8_at_z = self._sigma_from_pk(tmpk_,np.exp(tmppk_))
 
-        #print(f'σ8(z={self.zcen}) = {self.sigma8_at_z}')
-
         self.output_dict = {'kemul_pk': self.kemul_pk,
                             'pk_lin': self.pk_lin,
                             'pk_nw': self.pk_nw,
-                            'sigma8': self.sigma8_at_z}
+                            'sigma8': self.sigma8_at_z,
+                            'f0': None,
+                            'qpar': None,
+                            'qperp': None}
+
+        return self.output_dict
+
+    def _get_linear_pk_jaxmapse(self, pars):
+        logA = pars['ln10^{10}A_s']
+        n_s  = pars.get('n_s', 0.9649)
+        h    = pars['h']
+        omega_b   = pars['omega_b']
+        omega_cdm = pars['omega_cdm']
+        m_ncdm = pars.get('m_ncdm', pars.get('m_nu', 0.06))
+        w0 = pars.get('w0', -1.0)
+        wa = pars.get('wa', 0.0)
+
+        jax_cosmo = self._jaxmapse.w0waCDMCosmology(
+                            ln10As=logA, ns=n_s, h=h,
+                            omega_b=omega_b, omega_c=omega_cdm,
+                            m_nu=m_ncdm, w0=w0, wa=wa,
+                        )
+        D_z = jax_cosmo.D_z(self.zcen)
+        f0 = float(jax_cosmo.f_z(self.zcen))
+
+        k_lin, pk_lin = self._predict_plin_jaxmapse(
+                            z      = self.zcen,
+                            ln10As = logA,
+                            ns     = n_s,
+                            H0     = h * 100.0,
+                            ombh2  = omega_b,
+                            omch2  = omega_cdm,
+                            Mnu    = m_ncdm,
+                            w0     = w0,
+                            wa     = wa,
+                            D      = D_z,
+                        )
+        _, pk_nw = self._predict_pnw_jaxmapse(
+                        z      = self.zcen,
+                        ln10As = logA,
+                        ns     = n_s,
+                        H0     = h * 100.0,
+                        ombh2  = omega_b,
+                        omch2  = omega_cdm,
+                        Mnu    = m_ncdm,
+                        w0     = w0,
+                        wa     = wa,
+                        D      = D_z,
+                    )
+
+        k_lin  = np.asarray(k_lin)
+        pk_lin = np.asarray(pk_lin)
+        pk_nw  = np.asarray(pk_nw)
+        pk_lin = np.where(np.isfinite(pk_lin) & (pk_lin > 0.0), pk_lin, np.nan)
+        pk_nw  = np.where(np.isfinite(pk_nw) & (pk_nw > 0.0), pk_nw, np.nan)
+
+        if np.any(~np.isfinite(pk_lin)) or np.any(~np.isfinite(pk_nw)):
+            raise ValueError(
+                "The jaxmapse linear P(k) emulator returned non-positive or non-finite "
+                "values inside its native k grid. This usually means the sampled "
+                "cosmology is outside the emulator's reliable parameter range."
+            )
+
+        tmpk_  = np.geomspace(1e-4, 20, 2000)
+        tmppk_ = interp1d( np.log(k_lin), np.log(pk_lin), bounds_error=False, fill_value='extrapolate', kind='cubic' )(np.log(tmpk_))
+        sigma8_at_z = self._sigma_from_pk(tmpk_, np.exp(tmppk_))
+
+        qpar, qperp = None, None
+        if self.AP:
+            fid = self.cosmo_fid
+            fid_cosmo = self._jaxmapse.w0waCDMCosmology(
+                            ln10As=np.log(1e10 * fid['As']),
+                            ns=fid['ns'],
+                            h=fid['h'],
+                            omega_b=fid['omega_b'],
+                            omega_c=fid['omega_cdm'],
+                            m_nu=fid.get('m_ncdm', fid.get('m_nu', 0.06)),
+                            w0=fid.get('w0', -1.0),
+                            wa=fid.get('wa', 0.0),
+                        )
+            qperp = float(h * jax_cosmo.r_z(self.zcen) / fid_cosmo.r_z(self.zcen) / fid['h'])
+            qpar  = float(fid_cosmo.E_z(self.zcen) / jax_cosmo.E_z(self.zcen))
+
+        self.output_dict = {'kemul_pk': k_lin,
+                            'pk_lin': pk_lin,
+                            'pk_nw': pk_nw,
+                            'sigma8': sigma8_at_z,
+                            'f0': f0,
+                            'qpar': qpar,
+                            'qperp': qperp}
 
         return self.output_dict
 
@@ -158,8 +274,8 @@ class FOLPSCalculator:
         omega_b   = pars['omega_b']
         omega_cdm = pars['omega_cdm']
         h         = pars['h']
-        m_nu      = pars.get('m_nu', 0.0)
-        omega_nu  = 0.06/93.14 if pars.get('omega_nu', 0.0) == 0.0 else pars['omega_nu']
+        m_nu      = pars.get('m_ncdm', pars.get('m_nu', 0.06))
+        omega_nu  = m_nu/93.14 if pars.get('omega_nu', 0.0) == 0.0 else pars['omega_nu']
 
         # Compute Omega_m from sampled cosmology
         Omega_m = (omega_b+omega_cdm+omega_nu)/h**2
@@ -172,8 +288,19 @@ class FOLPSCalculator:
             'fnu': f_nu
         }
 
+        # Get linear quantities
+        aux_vars = self._get_linear_pk(pars)
+        k_lin  = aux_vars['kemul_pk']
+        pk_lin = aux_vars['pk_lin']
+        pk_nw  = aux_vars['pk_nw']
+        sigma8 = aux_vars['sigma8']
+        k_pkl_pklnw = np.array([ k_lin,pk_lin,pk_nw ])
+
         # Alcock-Paczynski effect
-        if self.AP:
+        if self.AP and aux_vars.get('qpar') is not None:
+            qpar = aux_vars['qpar']
+            qperp = aux_vars['qperp']
+        elif self.AP:
             fid = self.cosmo_fid
             Omega_fid = ( fid['omega_b']+fid['omega_cdm']+fid['omega_nu'] )/fid['h']**2.0
             qpar, qperp = FOLPS.qpar_qperp( Omega_fid=Omega_fid,
@@ -184,13 +311,9 @@ class FOLPSCalculator:
         else:
             qpar, qperp = 1.0, 1.0
 
-        # Get linear quantities
-        bacco_quants = self._get_linear_pk(pars)
-        k_lin  = bacco_quants['kemul_pk']
-        pk_lin = bacco_quants['pk_lin']
-        pk_nw  = bacco_quants['pk_nw']
-        sigma8 = bacco_quants['sigma8']
-        k_pkl_pklnw = np.array([ k_lin,pk_lin,pk_nw ])
+        f0 = aux_vars.get('f0')
+        if f0 is None:
+            f0 = FOLPS.f0_function(self.zcen, Omega_m)
 
         nonlinear = FOLPS.NonLinearPowerSpectrumCalculator(
             mmatrices=self.mmatrices,
@@ -199,10 +322,13 @@ class FOLPSCalculator:
         )
 
         # Loop tables
+        k_nw_loop, pk_nw_loop = FOLPS.extrapolate_pklin(k_lin, pk_nw)
         table, table_nw = nonlinear.calculate_loop_table(
-            k=k_lin,
-            pklin=pk_lin,
-            cosmo=None,
+            k     = k_lin,
+            pklin = pk_lin,
+            pknow = (k_nw_loop, pk_nw_loop),
+            cosmo = None,
+            f0    = f0,
             **folps_cosmo
         )
 
@@ -213,7 +339,8 @@ class FOLPSCalculator:
                         'folps_cosmo': folps_cosmo,
                         'qpar': qpar,
                         'qperp': qperp,
-                        'sigma8': sigma8
+                        'sigma8': sigma8,
+                        'f0': f0
                         }
         return output_dict
     #
@@ -316,7 +443,7 @@ class FOLPSCalculator:
     def pk_from_model(self, pars):
 
         folps = self._compute_folps_quantities(pars)
-        f0 = FOLPS.f0_function(self.zcen,folps['folps_cosmo']['Omega_m'])
+        f0 = folps['f0']
 
         if self.reparametrize:
             pars = self._apply_reparametrization(pars.copy(), folps)
@@ -360,7 +487,7 @@ class FOLPSCalculator:
         ]
 
         k1k2T = np.vstack([folps['k'],folps['k']]).T  # List of pairs of k. ( B = B(k1,k2) )
-        f0 = FOLPS.f0_function(self.zcen,folps['folps_cosmo']['Omega_m'])
+        f0 = folps['f0']
 
         B000, B110, B220, B202, B022, B112 = self.folps_bk.Sugiyama_Bl1l2L(
                 k1k2T,
@@ -413,7 +540,7 @@ class FOLPSCalculator:
             pars.get('X_FoG_bk', 0.0)
         ]
 
-        f0 = FOLPS.f0_function(self.zcen, folps['folps_cosmo']['Omega_m'])
+        f0 = folps['f0']
 
         # FULL multipoles
         Nk = len(k_eval)
