@@ -95,8 +95,8 @@ class FOLPSCalculator:
         valid_emulators = {'bacco', 'jaxmapse'}
         if self.linear_pk_emulator not in valid_emulators:
             raise ValueError(
-                f"Unknown linear power spectrum emulator '{self.linear_pk_emulator}'. "
-                f"Choose one of {sorted(valid_emulators)}."
+                f'Unknown linear power spectrum emulator '{self.linear_pk_emulator}'. '
+                f'Choose one of {sorted(valid_emulators)}.'
             )
 
         if self.linear_pk_emulator == 'bacco':
@@ -113,8 +113,7 @@ class FOLPSCalculator:
     def _initialise_linear_pk_jaxmapse(self):
         if self.jaxmapse_plin_path is None or self.jaxmapse_pnw_path is None:
             raise ValueError(
-                "The jaxmapse emulator requires both 'jaxmapse_plin_path' and 'jaxmapse_pnw_path' "
-                "in the config file."
+                "The jaxmapse emulator requires both 'jaxmapse_plin_path' and 'jaxmapse_pnw_path' in the config file."
             )
 
         from pklin_emulator_jit import PkEmulator
@@ -138,7 +137,6 @@ class FOLPSCalculator:
 
     def _get_linear_pk_bacco(self, pars):
         # bacco calls Omega_x omega_x.
-
         bacco_cosmo_pars = {
                     'omega_cold'    : (pars['omega_cdm'] + pars['omega_b']) / pars['h']**2,
                     'omega_baryon'  : pars['omega_b']/pars['h']**2,
@@ -219,30 +217,29 @@ class FOLPSCalculator:
 
         if np.any(~np.isfinite(pk_lin)) or np.any(~np.isfinite(pk_nw)):
             raise ValueError(
-                "The jaxmapse linear P(k) emulator returned non-positive or non-finite "
-                "values inside its native k grid. This usually means the sampled "
-                "cosmology is outside the emulator's reliable parameter range."
+                'The jaxmapse linear P(k) emulator returned non-positive or non-finite values'
             )
 
         tmpk_  = np.geomspace(1e-4, 20, 2000)
-        tmppk_ = interp1d( np.log(k_lin), np.log(pk_lin), bounds_error=False, fill_value='extrapolate', kind='cubic' )(np.log(tmpk_))
+        tmppk_ = interp1d( np.log(k_lin), np.log(pk_lin), 
+                           bounds_error=False, fill_value='extrapolate', kind='cubic' ) ( np.log(tmpk_) )
         sigma8_at_z = self._sigma_from_pk(tmpk_, np.exp(tmppk_))
 
         qpar, qperp = None, None
         if self.AP:
             fid = self.cosmo_fid
             fid_cosmo = self._jaxmapse.w0waCDMCosmology(
-                            ln10As=np.log(1e10 * fid['As']),
-                            ns=fid['ns'],
-                            h=fid['h'],
-                            omega_b=fid['omega_b'],
-                            omega_c=fid['omega_cdm'],
-                            m_nu=fid.get('m_ncdm', fid.get('m_nu', 0.06)),
-                            w0=fid.get('w0', -1.0),
-                            wa=fid.get('wa', 0.0),
+                            ln10As  = np.log(1e10 * fid['As']),
+                            ns      = fid['ns'],
+                            h       = fid['h'],
+                            omega_b = fid['omega_b'],
+                            omega_c = fid['omega_cdm'],
+                            m_nu    = fid.get('m_ncdm', fid.get('m_nu', 0.06)),
+                            w0      = fid.get('w0', -1.0),
+                            wa      = fid.get('wa', 0.0),
                         )
-            qperp = float(h * jax_cosmo.r_z(self.zcen) / fid_cosmo.r_z(self.zcen) / fid['h'])
-            qpar  = float(fid_cosmo.E_z(self.zcen) / jax_cosmo.E_z(self.zcen))
+            qperp = float( h * jax_cosmo.r_z(self.zcen) / fid_cosmo.r_z(self.zcen) / fid['h'] )
+            qpar  = float( fid_cosmo.E_z(self.zcen) / jax_cosmo.E_z(self.zcen) )
 
         self.output_dict = {'kemul_pk': k_lin,
                             'pk_lin': pk_lin,
@@ -298,7 +295,7 @@ class FOLPSCalculator:
 
         # Alcock-Paczynski effect
         if self.AP and aux_vars.get('qpar') is not None:
-            qpar = aux_vars['qpar']
+            qpar  = aux_vars['qpar']
             qperp = aux_vars['qperp']
         elif self.AP:
             fid = self.cosmo_fid
