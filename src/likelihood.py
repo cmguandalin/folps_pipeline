@@ -1,6 +1,21 @@
 from scipy.stats import norm, uniform
 import pocomc as pc
 import numpy as np
+from collections import OrderedDict
+
+# Key to make the neutrino-mass handling consistent across the file
+# pklin_emulator_jit.py uses Mnu
+NEUTRINO_MASS_KEYS = ('m_ncdm', 'm_nu', 'Mnu')
+# Conversion factor
+NEUTRINO_MASS_TO_OMEGA_NU = 93.14
+
+def get_neutrino_mass_for_prior(pars, default=0.06):
+    for key in NEUTRINO_MASS_KEYS:
+        if key in pars:
+            return pars[key]
+    if 'omega_nu' in pars:
+        return pars['omega_nu'] * NEUTRINO_MASS_TO_OMEGA_NU
+    return default
 
 class JointLikelihood:
     def __init__(self, runs, shared_parameters, debug_filename=None):
@@ -96,8 +111,13 @@ class JointLikelihood:
         }
 
         total_lnprob = 0.0
+        folps_cache = OrderedDict()
 
         for tracer_name, run in self.runs.items():
+            calculator = run['model_function'].calculator
+            if hasattr(calculator, 'set_folps_cache'):
+                calculator.set_folps_cache(folps_cache)
+
             local_theta = self.make_local_theta(
                 tracer_name,
                 run,
@@ -144,7 +164,9 @@ class JointLikelihood:
         # ...
 
 class Likelihood:
-    def __init__(self, priors_dict, model_function, emulator, debug_filename=None):
+    def __init__(self, priors_dict, model_function, emulator,
+                    analytic_marginalisation=None, all_priors_dict=None,
+                    debug_filename=None):
         """
             Initialise the Likelihood class.
 
@@ -155,7 +177,20 @@ class Likelihood:
         self.priors_dict = priors_dict
         self.model_function = model_function
         self.emulator = emulator
+        self.debug_filename = debug_filename
+        self.all_priors_dict = all_priors_dict or priors_dict
+        # Analytical marginalisation related
+        # Keep only marginalised parameter names that exist in the full prior dictionary.
+        self.analytic_marginalisation = []
+        if analytic_marginalisation is not None:
+            for param in analytic_marginalisation:
+                # Checking if an AM parameter is not present in the tracer's prior list.
+                if param in self.all_priors_dict:
+                    self.analytic_marginalisation.append(param)
+        self.am_means, self.am_sigmas = self._initialise_am_priors()
+        self._failure_counter = 0
 
+        '''
         self.debug_filename = debug_filename
         if self.debug_filename is not None:
             self._debug_counter = 0
@@ -163,6 +198,20 @@ class Likelihood:
             # Create/overwrite file at start of run
             with open(self.debug_filename, "w") as f:
                 f.write("# theta chi2\n")
+        '''
+
+    def _initialise_am_priors(self):
+        means = []
+        sigmas = []
+        for param in self.analytic_marginalisation:
+            prior_info = self.all_priors_dict[param]
+            if prior_info['type'] not in ['Gauss', 'Gaussian']:
+                raise ValueError(
+                    f'Analytically marginalised parameter {param} must have a Gaussian prior.'
+                )
+            means.append(prior_info['lim'][0])
+            sigmas.append(prior_info['lim'][1])
+        return np.array(means), np.array(sigmas)
 
     def initialise_prior(self):
         """
@@ -207,33 +256,104 @@ class Likelihood:
         if self.emulator:
             if self.emulator == 'bacco':
                 # BACCO HARD PRIOR
-                # the following step can be removed if the priors' range
-                # are the same as the emulators (added because of bacco:
-                # for some parameters, e.g. Omega_b, = omega_b/h^2 falls
-                # outside [0.03,0.07])
                 Omega_b = pars.get('omega_b',0.02237) / pars.get('h',0.6736)**2
                 if (Omega_b < 0.03) or (Omega_b > 0.07):
                     return -np.inf
+
                 Omega_cold = ( pars.get('omega_b',0.02237) + pars.get('omega_cdm',0.120) ) / pars.get('h',0.6736)**2
                 if (Omega_cold < 0.15) or (Omega_cold > 0.6):
                     return -np.inf
                 if ( pars.get('h',0.6736) < 0.5 ) or ( pars.get('h',0.6736) > 0.9 ):
                     return -np.inf
-                if pars.get('w0',-1.0) + pars.get('wa',0.0) > 0.0:
+
+                w0 = pars.get('w0', -1.0)
+                wa = pars.get('wa', 0.0)
+                if ( w0 < -1.3 or w0 > -0.7 or wa < -0.5 or wa > 0.5 or w0 + wa > 0.0 ):
                     return -np.inf
             elif self.emulator == 'jaxmapse':
+                # Early matter domination - also in bacco
                 if pars.get('w0',-1.0) + pars.get('wa',0.0) > 0.0:
                     return -np.inf
             else:
                 raise ValueError(f'Unknown linear power spectrum emulator: {self.emulator}')
-        
+
+        if get_neutrino_mass_for_prior(pars) <= 0.0:
+            return -np.inf
+
+        '''
         try:
             m = self.model_function.compute_model_vector(theta)
         except (ValueError, FloatingPointError):
             return -np.inf
-        
+
         diff = m - data_
         chi2_try = np.dot(diff.T, np.dot(icov_, diff))
+
+        if self.debug_filename is not None:
+            self._debug_counter += 1
+            if self._debug_counter % self.debug_every == 0:
+                with open(self.debug_filename, "a") as f:
+                    f.write(
+                        " ".join(map(str, theta)) + f" {chi2_try}\n"
+                    )
+        '''
+
+        if self.analytic_marginalisation:
+            try:
+                m, templates = self.model_function.compute_model_vector_am(
+                    theta,
+                    self.analytic_marginalisation
+                )
+            except Exception as exc:
+                self._failure_counter += 1
+                if self._failure_counter <= 3:
+                    print(f'Analytical marginalisation failed: {type(exc).__name__}: {exc}')
+                return -np.inf
+            if not (np.all(np.isfinite(m)) and np.all(np.isfinite(templates))):
+                return -np.inf
+
+            diff = m - data_
+            if templates.shape[0] == 0:
+                chi2_try = np.dot(diff.T, np.dot(icov_, diff))
+                return -0.5 * chi2_try
+
+            F0   = (
+                    np.dot(diff.T, np.dot(icov_, diff))
+                    + np.sum((self.am_means / self.am_sigmas) ** 2)
+                   )
+            F1i  = (
+                    -np.einsum("ij,jk,k->i", templates, icov_, diff)
+                    + self.am_means / self.am_sigmas**2
+                   )
+            F2ij = (
+                    np.einsum("ik,kp,jp->ij", templates, icov_, templates)
+                    + np.diag(1.0 / self.am_sigmas**2)
+                   )
+
+            if not (  np.isfinite(F0)
+                      and np.all(np.isfinite(F1i))
+                      and np.all(np.isfinite(F2ij)) ):
+                return -np.inf
+
+            sign, logdet = np.linalg.slogdet(F2ij)
+            if sign <= 0 or not np.isfinite(logdet):
+                return -np.inf
+            try:
+                self.marg_pars_means_raw = np.linalg.solve(F2ij, F1i)
+            except np.linalg.LinAlgError:
+                return -np.inf
+
+            chi2_try = F0 - np.dot(F1i.T, self.marg_pars_means_raw) + logdet
+            if not np.isfinite(chi2_try):
+                return -np.inf
+
+            self.marg_pars_means_dict = { param: self.marg_pars_means_raw[i]
+                                          for i, param in enumerate(self.analytic_marginalisation)
+                                        }
+        else:
+            m = self.model_function.compute_model_vector(theta)
+            diff = m - data_
+            chi2_try = np.dot(diff.T, np.dot(icov_, diff))
 
         if self.debug_filename is not None:
             self._debug_counter += 1
