@@ -1,25 +1,30 @@
 import numpy as np
 from scipy.interpolate import interp1d
+from collections import OrderedDict
 
 import os, sys
 os.environ['FOLPS_BACKEND'] = 'numpy'  #'numpy' or 'jax'
-sys.path.append('/Users/austerlitz/folps/folpsD/')
+sys.path.append('/cosma/home/dp322/dc-guan2/folps/folpsD/')
 import folps as FOLPS
 
+import warnings
 from time import time
 import re
 
-'''
-Important caveats:
-* In the priors, always use the parameter ln10^{10}A_s. However, FOLPS samples over A_s, so there is an internal conversion!
-'''
+# Key to make the neutrino-mass handling consistent across the file
+# pklin_emulator_jit.py uses Mnu
+NEUTRINO_MASS_KEYS = ('m_ncdm', 'm_nu', 'Mnu')
+# Needed for folpsD, which takes the neutrino fraction fnu (computed from the physical neutrino density omega_nu)
+NEUTRINO_MASS_TO_OMEGA_NU = 93.14
+
 
 class FOLPSCalculator:
 
     def __init__(self, mean_density, redshift, tracer,
                  model='EFT', damping=None, use_TNS_model=False,
                  AP=True, cosmo_fid=None, reparametrize=False,
-                 emulator='bacco', jaxmapse_plin_path=None, jaxmapse_pnw_path=None):
+                 emulator='bacco', jaxmapse_plin_path=None, jaxmapse_pnw_path=None,
+                 folps_nk=1000):
         '''
             Damping: either "None" or " 'lor' "
             cosmo_fis: for AP;
@@ -42,6 +47,9 @@ class FOLPSCalculator:
         self.linear_pk_emulator = emulator
         self.jaxmapse_plin_path = jaxmapse_plin_path
         self.jaxmapse_pnw_path  = jaxmapse_pnw_path
+        self.folps_nk = int(folps_nk)
+        self._folps_cache = OrderedDict()
+        self._folps_cache_max_size = 8
 
         ######################
         # Initialise linear power spectrum emulator
@@ -67,8 +75,22 @@ class FOLPSCalculator:
         Helper functions
     '''
 
+    def _get_neutrino_mass(self, pars, default=0.06):
+        for key in NEUTRINO_MASS_KEYS:
+            if key in pars:
+                return pars[key]
+        return default
+
+    def _get_neutrino_density(self, pars, default_mass=0.06):
+        for key in NEUTRINO_MASS_KEYS:
+            if key in pars:
+                return pars[key] / NEUTRINO_MASS_TO_OMEGA_NU
+        if 'omega_nu' in pars:
+            return pars['omega_nu']
+        return default_mass / NEUTRINO_MASS_TO_OMEGA_NU
+
     def _sigma_from_pk(self, k_, pk_, h_=None, R_=8.0):
-        """
+        '''
             Sigma 8 computation from linear P(k)
 
             Args:
@@ -78,7 +100,7 @@ class FOLPSCalculator:
                 R  : smoothing scale in Mpc/h (default 8.0)
             ---------
             Returns: np.float
-        """
+        '''
         if h_ is not None:
             R_ = R_/h_ # now in Mpc if k is in 1/Mpc
 
@@ -89,14 +111,23 @@ class FOLPSCalculator:
 
         return np.sqrt(np.trapz(integrand, np.log(k_)) / (2.0 * np.pi**2))
 
+    def _legendre(self, ell, mu):
+        if ell == 0:
+            return 1.0
+        if ell == 2:
+            return 0.5 * (3.0 * mu**2 - 1.0)
+        if ell == 4:
+            return (35.0 * mu**4 - 30.0 * mu**2 + 3.0) / 8.0
+        raise ValueError(f'Unsupported P(k) multipole: {ell}')
+
     ########################################################
     # EMULATORS FOR LINEAR POWER SPECTRUM
     def _initialise_linear_pk_emulator(self):
         valid_emulators = {'bacco', 'jaxmapse'}
         if self.linear_pk_emulator not in valid_emulators:
             raise ValueError(
-                f'Unknown linear power spectrum emulator '{self.linear_pk_emulator}'. '
-                f'Choose one of {sorted(valid_emulators)}.'
+                f"Unknown linear power spectrum emulator '{self.linear_pk_emulator}'. "
+                f"Choose one of {sorted(valid_emulators)}."
             )
 
         if self.linear_pk_emulator == 'bacco':
@@ -106,18 +137,21 @@ class FOLPSCalculator:
 
     def _initialise_linear_pk_baccoemu(self):
         import baccoemu
-
+        print('Initialising baccoemu')
         self.emulator = baccoemu.Matter_powerspectrum(verbose=False)
-        self.kemul_pk = np.logspace(-4, np.log10(3), num=1000)
+        self.kemul_pk = np.logspace(-4, np.log10(3), num=self.folps_nk)
 
     def _initialise_linear_pk_jaxmapse(self):
         if self.jaxmapse_plin_path is None or self.jaxmapse_pnw_path is None:
             raise ValueError(
-                "The jaxmapse emulator requires both 'jaxmapse_plin_path' and 'jaxmapse_pnw_path' in the config file."
+                "The jaxmapse emulator requires both 'jaxmapse_plin_path' and 'jaxmapse_pnw_path' "
+                "in the config file."
             )
 
         from pklin_emulator_jit import PkEmulator
         import jaxmapse
+
+        print('Initialising jaxmapse')
 
         self.emulator = PkEmulator(
             path_plin=self.jaxmapse_plin_path,
@@ -136,12 +170,14 @@ class FOLPSCalculator:
         raise ValueError(f"Unknown linear power spectrum emulator '{self.linear_pk_emulator}'.")
 
     def _get_linear_pk_bacco(self, pars):
-        # bacco calls Omega_x omega_x.
+
+        # OBS: bacco calls Omega_x omega_x.
+
         bacco_cosmo_pars = {
                     'omega_cold'    : (pars['omega_cdm'] + pars['omega_b']) / pars['h']**2,
                     'omega_baryon'  : pars['omega_b']/pars['h']**2,
                     'hubble'        : pars['h'],
-                    'neutrino_mass' : pars.get('m_ncdm', pars.get('m_nu', 0.06)),
+                    'neutrino_mass' : self._get_neutrino_mass(pars),
                     'ns'            : pars.get('n_s', 0.9649),
                     'A_s'           : np.exp(pars['ln10^{10}A_s']) / 1e10,
                     'w0'            : pars.get('w0', -1.0),
@@ -172,7 +208,7 @@ class FOLPSCalculator:
         h    = pars['h']
         omega_b   = pars['omega_b']
         omega_cdm = pars['omega_cdm']
-        m_ncdm = pars.get('m_ncdm', pars.get('m_nu', 0.06))
+        m_ncdm = self._get_neutrino_mass(pars)
         w0 = pars.get('w0', -1.0)
         wa = pars.get('wa', 0.0)
 
@@ -215,31 +251,29 @@ class FOLPSCalculator:
         pk_lin = np.where(np.isfinite(pk_lin) & (pk_lin > 0.0), pk_lin, np.nan)
         pk_nw  = np.where(np.isfinite(pk_nw) & (pk_nw > 0.0), pk_nw, np.nan)
 
-        if np.any(~np.isfinite(pk_lin)) or np.any(~np.isfinite(pk_nw)):
-            raise ValueError(
-                'The jaxmapse linear P(k) emulator returned non-positive or non-finite values'
-            )
+        if not np.isfinite(pk_lin).all() or not np.isfinite(pk_nw).all():
+            raise ValueError( 'The jaxmapse linear P(k) emulator returned non-positive or non-finite values' )
 
         tmpk_  = np.geomspace(1e-4, 20, 2000)
-        tmppk_ = interp1d( np.log(k_lin), np.log(pk_lin), 
-                           bounds_error=False, fill_value='extrapolate', kind='cubic' ) ( np.log(tmpk_) )
+        tmppk_ = interp1d( np.log(k_lin), np.log(pk_lin), bounds_error=False, fill_value='extrapolate', kind='cubic' )(np.log(tmpk_))
         sigma8_at_z = self._sigma_from_pk(tmpk_, np.exp(tmppk_))
 
         qpar, qperp = None, None
         if self.AP:
             fid = self.cosmo_fid
             fid_cosmo = self._jaxmapse.w0waCDMCosmology(
-                            ln10As  = np.log(1e10 * fid['As']),
-                            ns      = fid['ns'],
-                            h       = fid['h'],
-                            omega_b = fid['omega_b'],
-                            omega_c = fid['omega_cdm'],
-                            m_nu    = fid.get('m_ncdm', fid.get('m_nu', 0.06)),
-                            w0      = fid.get('w0', -1.0),
-                            wa      = fid.get('wa', 0.0),
+                            ln10As=np.log(1e10 * fid['As']),
+                            ns=fid['ns'],
+                            h=fid['h'],
+                            omega_b=fid['omega_b'],
+                            omega_c=fid['omega_cdm'],
+                            m_nu=self._get_neutrino_mass(fid),
+                            w0=fid.get('w0', -1.0),
+                            wa=fid.get('wa', 0.0),
                         )
-            qperp = float( h * jax_cosmo.r_z(self.zcen) / fid_cosmo.r_z(self.zcen) / fid['h'] )
-            qpar  = float( fid_cosmo.E_z(self.zcen) / jax_cosmo.E_z(self.zcen) )
+            qperp = float(h * jax_cosmo.r_z(self.zcen) / fid_cosmo.r_z(self.zcen) / fid['h'])
+            #qperp = float(jax_cosmo.r_z(self.zcen) / fid_cosmo.r_z(self.zcen))
+            qpar  = float(fid_cosmo.E_z(self.zcen) / jax_cosmo.E_z(self.zcen))
 
         self.output_dict = {'kemul_pk': k_lin,
                             'pk_lin': pk_lin,
@@ -262,17 +296,90 @@ class FOLPSCalculator:
             use_TNS_model=self.use_TNS_model
         )
         self.mmatrices = matrix.get_mmatrices()
+
+    def set_folps_cache(self, cache):
+        self._folps_cache = cache
+
+    def _folps_cache_key(self, pars):
+        '''
+            Building a "label" used to decide whether a cached FOLPS result can be reused.
+            Extracts FOLPS cosmology dependent ingredients to be used as a dictionary key.
+            --------
+            Returns:
+                A tuple containing cached FOLPS results to be reused, including:
+                    1 - emulator choice (e.g., bacco or jaxmapse)
+                    2 - theory model    (e.g. EFT or TNS)
+                    3 - whether TNS terms are used
+                    4 - whether AP is enabled
+                    5 - redshift
+                    6 - sampled cosmological parameters
+                    7 - fiducial cosmology (if AP)
+        '''
+
+        # Cosmological parameters that affect the linear power spectrum, growth, and AP factors;
+        # This excludes nuisance/bias parameters as they are not required for recomputing the 
+        # cosmology-dependent loop table (which will be recomputed for the analytical marginalisation)
+        cosmo_keys = ( 'omega_b',
+                       'omega_cdm',
+                       'omega_nu',
+                       'm_ncdm',
+                       'm_nu',
+                       'Mnu',
+                       'h',
+                       'n_s',
+                       'ln10^{10}A_s',
+                       'w0',
+                       'wa'
+                     )
+
+        fid_items = ()
+        # If AP corrections are enabled, the output depends on the fiducial cosmology.
+        if self.AP and self.cosmo_fid is not None:
+            fid_items = tuple(
+                (key, float(self.cosmo_fid[key]))
+                for key in sorted(self.cosmo_fid)
+                if key in self.cosmo_fid
+            )
+        return ( self.linear_pk_emulator,
+                 self.model,
+                 self.use_TNS_model,
+                 self.AP,
+                 float(self.zcen),
+                 tuple((key, float(pars[key])) for key in cosmo_keys if key in pars),
+                 fid_items,
+               )
+
+    def _get_cached_folps_quantities(self, key):
+        if self._folps_cache is None:
+            return None
+        try:
+            cached = self._folps_cache.pop(key)
+        except KeyError:
+            return None
+        self._folps_cache[key] = cached
+        return cached
+
+    def _store_cached_folps_quantities(self, key, value):
+        if self._folps_cache is None:
+            return
+        self._folps_cache[key] = value
+        while len(self._folps_cache) > self._folps_cache_max_size:
+            self._folps_cache.popitem(last=False)
     #
     # [2] Everything folps requires for P(k) and B(k)
     #
     def _compute_folps_quantities(self, pars):
+        cache_key = self._folps_cache_key(pars)
+        cached = self._get_cached_folps_quantities(cache_key)
+        if cached is not None:
+            return cached
 
         # Build cosmology dictionary
         omega_b   = pars['omega_b']
         omega_cdm = pars['omega_cdm']
         h         = pars['h']
-        m_nu      = pars.get('m_ncdm', pars.get('m_nu', 0.06))
-        omega_nu  = m_nu/93.14 if pars.get('omega_nu', 0.0) == 0.0 else pars['omega_nu']
+        m_nu      = self._get_neutrino_mass(pars)
+        omega_nu  = self._get_neutrino_density(pars)
 
         # Compute Omega_m from sampled cosmology
         Omega_m = (omega_b+omega_cdm+omega_nu)/h**2
@@ -280,6 +387,10 @@ class FOLPSCalculator:
 
         folps_cosmo = {
             **pars,
+            'omega_nu': omega_nu,
+            'm_ncdm': m_nu,
+            'm_nu': m_nu,
+            'Mnu': m_nu,
             'z': self.zcen,
             'Omega_m': Omega_m,
             'fnu': f_nu
@@ -295,11 +406,11 @@ class FOLPSCalculator:
 
         # Alcock-Paczynski effect
         if self.AP and aux_vars.get('qpar') is not None:
-            qpar  = aux_vars['qpar']
+            qpar = aux_vars['qpar']
             qperp = aux_vars['qperp']
         elif self.AP:
             fid = self.cosmo_fid
-            Omega_fid = ( fid['omega_b']+fid['omega_cdm']+fid['omega_nu'] )/fid['h']**2.0
+            Omega_fid = (fid['omega_b'] + fid['omega_cdm'] + self._get_neutrino_density(fid)) / fid['h']**2.0
             qpar, qperp = FOLPS.qpar_qperp( Omega_fid=Omega_fid,
                                             Omega_m=Omega_m,
                                             z_pk=self.zcen,
@@ -339,6 +450,7 @@ class FOLPSCalculator:
                         'sigma8': sigma8,
                         'f0': f0
                         }
+        self._store_cached_folps_quantities(cache_key, output_dict)
         return output_dict
     #
     # [3] Bias parameters for the power spectrum
@@ -462,6 +574,176 @@ class FOLPSCalculator:
         }
 
         return interp_dict
+    #
+    # [4.1] Compute the 1-loop power spectrum multipoles for analytical marginalisation
+    #
+    def pk_marginalised_from_model(self, pars, marginalised_params, multipoles, k_eval=None):
+        """
+            Return the non-marginalised P(k) multipoles and templates for the
+            nuisance parameters that are analytically marginalised.
+        """
+
+        folps = self._compute_folps_quantities(pars)
+        f0 = folps['f0']
+
+        if self.reparametrize:
+            pars = self._apply_reparametrization(pars.copy(), folps)
+        bias_scheme, nuisance_params = self._get_folps_Pk_bias_params(pars, f0)
+
+        ells = tuple(int(ell) for ell in multipoles)
+        kobs = folps['k'] if k_eval is None else np.asarray(k_eval)
+        nuisance_params = self.folps_pk.set_bias_scheme(nuisance_params, bias_scheme=bias_scheme)
+        b1, b2, bs, b3, alpha0, alpha2, alpha4, ctilde, alphashot0, alphashot2, PshotP, X_FoG = nuisance_params
+
+        # Get the constant (nuisance to be marginalised over set to zero) model
+        '''
+        nuisance_const = [
+                            b1, b2, bs, b3,
+                            0.0, 0.0, 0.0,
+                            ctilde,
+                            0.0, 0.0,
+                            PshotP, X_FoG
+                         ]
+        '''
+        marginalised_params = set(marginalised_params)
+
+        marg_c0   = ('c0'   in marginalised_params) or ('c0_tilde'   in marginalised_params)
+        marg_c2pp = ('c2pp' in marginalised_params) or ('c2pp_tilde' in marginalised_params)
+        marg_c4pp = ('c4pp' in marginalised_params) or ('c4pp_tilde' in marginalised_params)
+        marg_a0   = ('a0'   in marginalised_params) or ('a0_tilde'   in marginalised_params)
+        marg_a2   = ('a2'   in marginalised_params) or ('a2_tilde'   in marginalised_params)
+
+        nuisance_const = [
+                            b1, b2, bs, b3,
+                            0.0 if marg_c0 else alpha0,
+                            0.0 if marg_c2pp else alpha2,
+                            0.0 if marg_c4pp else alpha4,
+                            ctilde,
+                            0.0 if marg_a0 else alphashot0,
+                            0.0 if marg_a2 else alphashot2,
+                            PshotP, X_FoG
+                         ]
+
+        mu_nodes, mu_weights = np.polynomial.legendre.leggauss(6)
+        jac = (folps['qpar'] * folps['qperp']**2)**(-1)
+        pk_const = {ell: np.zeros_like(kobs, dtype=float) for ell in ells}
+        pk_derivatives = {
+            ell: {
+                'alpha0': np.zeros_like(kobs, dtype=float),
+                'alpha2': np.zeros_like(kobs, dtype=float),
+                'alpha4': np.zeros_like(kobs, dtype=float),
+                'alphashot0': np.zeros_like(kobs, dtype=float),
+                'alphashot2': np.zeros_like(kobs, dtype=float),
+            }
+            for ell in ells
+        }
+
+        for mu, weight in zip(mu_nodes, mu_weights):
+            kap = self.folps_pk.k_ap(kobs, mu, folps['qpar'], folps['qperp'])
+            muap = self.folps_pk.mu_ap(mu, folps['qpar'], folps['qperp'])
+            table_interp = self.folps_pk.interp_table(kap, folps['table'], FOLPS.A_full_status)
+            table_now_interp = self.folps_pk.interp_table(kap, folps['table_nw'], FOLPS.A_full_status)
+
+            f0_table = table_interp[-1]
+            fk = table_interp[1] * f0_table
+            pkl = table_interp[0]
+            pkl_now = table_now_interp[0]
+            sigma2, delta_sigma2 = table_now_interp[-3:-1]
+            sigma2t = (
+                (1 + f0_table * muap**2 * (2 + f0_table)) * sigma2
+                + (f0_table * muap)**2 * (muap**2 - 1) * delta_sigma2
+            )
+            exp_term = np.exp(-kap**2 * sigma2t)
+            exp_term_inv = 1.0 - exp_term
+
+            pkmu_const = jac * (
+                (b1 + fk * muap**2)**2
+                * (pkl_now + exp_term * (pkl - pkl_now) * (1 + kap**2 * sigma2t))
+                + exp_term * self.folps_pk.get_eft_pkmu(kap, muap, nuisance_const, table_interp, self.damping)
+                + exp_term_inv * self.folps_pk.get_eft_pkmu(kap, muap, nuisance_const, table_now_interp, self.damping)
+            )
+
+            k2 = kap**2
+            mu2 = muap**2
+            d_alpha0 = jac * (exp_term * k2 * pkl + exp_term_inv * k2 * pkl_now)
+            d_alpha2 = jac * (exp_term * k2 * mu2 * pkl + exp_term_inv * k2 * mu2 * pkl_now)
+            d_alpha4 = jac * (exp_term * k2 * mu2**2 * pkl + exp_term_inv * k2 * mu2**2 * pkl_now)
+            d_alphashot0 = jac * PshotP
+            d_alphashot2 = jac * k2 * mu2 * PshotP
+
+            for ell in ells:
+                factor = 0.5 * (2 * ell + 1) * weight * self._legendre(ell, mu)
+                pk_const[ell] += factor * pkmu_const
+                pk_derivatives[ell]['alpha0'] += factor * d_alpha0
+                pk_derivatives[ell]['alpha2'] += factor * d_alpha2
+                pk_derivatives[ell]['alpha4'] += factor * d_alpha4
+                pk_derivatives[ell]['alphashot0'] += factor * d_alphashot0
+                pk_derivatives[ell]['alphashot2'] += factor * d_alphashot2
+
+        const_interp = {
+            str(ell): interp1d(kobs, pk_const[ell], kind='cubic', fill_value='extrapolate')
+            for ell in ells
+        }
+
+        deriv_by_alpha = {}
+        for ell in ells:
+            deriv_by_alpha[str(ell)] = {
+                'alpha0': pk_derivatives[ell]['alpha0'],
+                'alpha2': pk_derivatives[ell]['alpha2'],
+                'alpha4': pk_derivatives[ell]['alpha4'],
+                'alphashot0': pk_derivatives[ell]['alphashot0'],
+                'alphashot2': pk_derivatives[ell]['alphashot2'],
+            }
+
+        sigma8 = folps['sigma8']
+        A_AP = 1.0 / (folps['qpar'] * folps['qperp']**2)
+        b1 = pars['b1']
+
+        if 'LRG' in self.tracer:
+            sigv = 150 * (10)**(1/3) * (1 + 0.8)**(1/2) / 70.
+            fsat = 0.15
+        elif 'QSO' in self.tracer:
+            sigv = 150 * (10)**(0.7/3) * (2.4)**(1/2) / 70.
+            fsat = 0.03
+        else:
+            sigv = 0.0
+            fsat = 0.0
+
+        if self.reparametrize:
+            dc0 = 1.0 / (A_AP * sigma8**2)
+            dc2pp = 1.0 / (A_AP * sigma8**2)
+            dc4pp = 1.0 / (A_AP * sigma8**2)
+            da0 = 1.0 / A_AP
+            da2 = fsat * sigv**2 / A_AP
+        else:
+            dc0 = dc2pp = dc4pp = da0 = da2 = 1.0
+
+        template_interp = {}
+        for param in marginalised_params:
+            template_interp[param] = {}
+            for ell in const_interp:
+                d = deriv_by_alpha[ell]
+                if param in ['c0', 'c0_tilde']:
+                    template = dc0 * (b1**2 * d['alpha0'] + b1 * f0 * d['alpha2'])
+                elif param in ['c2pp', 'c2pp_tilde']:
+                    template = dc2pp * (b1 * f0 * d['alpha2'] + f0**2 * d['alpha4'])
+                elif param in ['c4pp', 'c4pp_tilde']:
+                    template = dc4pp * (b1 * f0 * d['alpha4'])
+                elif param in ['a0', 'a0_tilde']:
+                    template = da0 * d['alphashot0']
+                elif param in ['a2', 'a2_tilde']:
+                    template = da2 * d['alphashot2']
+                else:
+                    raise ValueError(f'Unsupported analytically marginalised parameter: {param}')
+
+                template_interp[param][ell] = interp1d(
+                    kobs,
+                    template,
+                    kind='cubic',
+                    fill_value='extrapolate'
+                )
+
+        return const_interp, template_interp
     #
     # [5] Compute the tree-level bispectrum multipoles
     #
@@ -679,37 +961,7 @@ class ModellingFunction:
 
         return theory_vector
 
-    def compute_model_vector(self, theta):
-        """
-        Compute the model predictions for the power spectrum and bispectrum based on the input parameters.
-
-        Args:
-            theta (np.ndarray): Array of parameter values sampled by the Monte-Carlo method.
-
-        Returns:
-            np.ndarray: Concatenated model predictions for the specified multipoles.
-                        (to be compared directly with the concatenated data vector in the Likelihood).
-        """
-
-        full_params = self.get_parameters_dictionary(theta)
-
-        # Initialize an empty list to store the model predictions
-        pk_vector = []
-        # Compute power spectrum predictions
-        if self.multipoles_pk:
-            pk_interp = self.calculator.pk_from_model(full_params)
-            if self.k_theory_window is not None and self.k_theory_window.get('Pk') is not None:
-                k_theory = self.k_theory_window['Pk']
-            else:
-                k_theory = None
-            for L in self.multipoles_pk:
-                k_array = k_theory if k_theory is not None else self.data[L]['k']
-                pk_vector.append( pk_interp[L](k_array) )
-            # Concatenate the model predictions into a single array
-            pk_vector = np.concatenate(pk_vector)
-            if self.window_matrix and self.window_matrix.get('Pk') is not None:
-                pk_vector = self.window_matrix['Pk'].dot(pk_vector)
-
+    def _compute_bk_vector(self, full_params):
         bk_vector = []
         # Compute bispectrum predictions
         if self.multipoles_bk:
@@ -732,9 +984,9 @@ class ModellingFunction:
                     combined = np.concatenate(combined_list)
                     if combined.shape[0] != self.window_matrix['Bk'][L].shape[1]:
                         raise ValueError(
-                            f"Bispectrum window shape mismatch for {L}: "
+                            f'Bispectrum window shape mismatch for {L}: '
                             f"window expects {self.window_matrix['Bk'][L].shape[1]} "
-                            f"model values, got {combined.shape[0]}."
+                            f'model values, got {combined.shape[0]}.'
                         )
                     Bconv = np.dot(self.window_matrix['Bk'][L], combined).reshape(len(k_theory), len(k_theory))
                     Bdiag = interp1d(k_theory,np.diag(Bconv),kind='cubic', fill_value='extrapolate')
@@ -749,6 +1001,42 @@ class ModellingFunction:
                     bk_vector.append( bk_interp[l1l2L](k_array) )
             bk_vector = np.concatenate(bk_vector)
 
+        return bk_vector
+
+    def compute_model_vector(self, theta):
+        '''
+        Compute the model predictions for the power spectrum and bispectrum based on the input parameters.
+
+        Args:
+            theta (np.ndarray): Array of parameter values sampled by the Monte-Carlo method.
+
+        Returns:
+            np.ndarray: Concatenated model predictions for the specified multipoles.
+                        (to be compared directly with the concatenated data vector in the Likelihood).
+        '''
+
+        full_params = self.get_parameters_dictionary(theta)
+
+        # Initialize an empty list to store the model predictions
+        pk_vector = []
+        # Compute power spectrum predictions
+        if self.multipoles_pk:
+            pk_interp = self.calculator.pk_from_model(full_params)
+            if self.k_theory_window is not None and self.k_theory_window.get('Pk') is not None:
+                k_theory = self.k_theory_window['Pk']
+            else:
+                k_theory = None
+            for L in self.multipoles_pk:
+                k_array = k_theory if k_theory is not None else self.data[L]['k']
+                pk_vector.append( pk_interp[L](k_array) )
+            # Concatenate the model predictions into a single array
+            pk_vector = np.concatenate(pk_vector)
+            if self.window_matrix and self.window_matrix.get('Pk') is not None:
+                pk_vector = self.window_matrix['Pk'].dot(pk_vector)
+
+        ''' THE bk_vector = [] BLOCK WITH BISPECTRUM PREDICTIONS HAS BEEN REPLACED BY A HELPER FUNCTION '''
+        bk_vector = self._compute_bk_vector(full_params)
+
         theory_vector = []
         if len(pk_vector) > 0:
             theory_vector.append(pk_vector)
@@ -756,5 +1044,68 @@ class ModellingFunction:
             theory_vector.append(bk_vector)
 
         return np.concatenate(theory_vector).flatten()
+
+    def compute_model_vector_am(self, theta, marginalised_params):
+        """
+        Compute the constant model vector and per-parameter templates used for
+        analytical marginalisation over linear P(k) nuisance parameters.
+        """
+
+        if self.k_theory_window is not None and self.k_theory_window.get('Pk') is not None:
+            k_theory = self.k_theory_window['Pk']
+        else:
+            k_theory = None
+
+        full_params   = self.get_parameters_dictionary(theta)
+        theory_vector = []
+
+        if not self.multipoles_pk:
+            warnings.warn( 'Analytical marginalisation is only done for the power spectrum. '
+                           f'Requested parameters {marginalised_params} will be ignored because '
+                           'this run has no P(k) multipoles; proceeding with the bispectrum only fit.',
+                           RuntimeWarning
+                         )
+            model_vector = self.compute_model_vector(theta)
+            return model_vector, np.zeros((0, len(model_vector)))
+
+        pk_const_interp, pk_template_interp = self.calculator.pk_marginalised_from_model(
+                                                            full_params,
+                                                            marginalised_params,
+                                                            self.multipoles_pk,
+                                                            k_eval=k_theory
+                                                        )
+
+        pk_const_vector  = []
+        template_vectors = {param: [] for param in marginalised_params}
+        for L in self.multipoles_pk:
+            k_array = k_theory if k_theory is not None else self.data[L]['k']
+            pk_const_vector.append(pk_const_interp[L](k_array))
+            for param in marginalised_params:
+                template_vectors[param].append(pk_template_interp[param][L](k_array))
+
+        pk_const_vector = np.concatenate(pk_const_vector)
+        template_matrix = np.array([ np.concatenate(template_vectors[param])
+                                     for param in marginalised_params
+                                  ])
+
+        if self.window_matrix and self.window_matrix.get('Pk') is not None:
+            pk_const_vector = self.window_matrix['Pk'].dot(pk_const_vector)
+            template_matrix = np.array([ self.window_matrix['Pk'].dot(template)
+                                         for template in template_matrix
+                                      ])
+
+        theory_vector.append(pk_const_vector)
+
+        bk_vector = self._compute_bk_vector(full_params)
+        if len(bk_vector) > 0:
+            theory_vector.append(bk_vector)
+            template_matrix = np.concatenate(
+                                    [ template_matrix,
+                                      np.zeros((len(marginalised_params), len(bk_vector)))
+                                    ],
+                                    axis=1
+                                )
+
+        return np.concatenate(theory_vector).flatten(), template_matrix
 
 ###########################################################
